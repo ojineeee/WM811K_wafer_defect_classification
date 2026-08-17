@@ -1,0 +1,45 @@
+{
+  "cnn_only": {
+    "macro_f1": 0.7902,
+    "accuracy": 0.8022,
+    "per_class_f1": {
+      "none": 0.7986,
+      "Center": 0.932,
+      "Donut": 0.8966,
+      "Edge-Loc": 0.7788,
+      "Edge-Ring": 0.955,
+      "Loc": 0.6711,
+      "Random": 0.8994,
+      "Scratch": 0.369,
+      "Near-full": 0.8108
+    }
+  },
+  "cnn_plus_derived_features": {
+    "macro_f1": 0.8436,
+    "accuracy": 0.8347,
+    "per_class_f1": {
+      "none": 0.8256,
+      "Center": 0.9338,
+      "Donut": 0.8745,
+      "Edge-Loc": 0.8285,
+      "Edge-Ring": 0.9598,
+      "Loc": 0.7077,
+      "Random": 0.8987,
+      "Scratch": 0.5961,
+      "Near-full": 0.9677
+    }
+  },
+  "macro_f1_delta": 0.0534,
+  "scratch_f1_delta": 0.2271,
+  "feature_names": [
+    "defect_density",
+    "defect_radial_mean",
+    "defect_radial_std",
+    "defect_spread",
+    "defect_row_concentration",
+    "defect_col_concentration",
+    "wafer_area",
+    "aspect_ratio"
+  ],
+  "elapsed_sec": 298.4
+}

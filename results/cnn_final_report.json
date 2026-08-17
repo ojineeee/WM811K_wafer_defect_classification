@@ -1,0 +1,33 @@
+{
+  "img_size": 64,
+  "cap_per_class": 2000,
+  "epochs": 15,
+  "train_size": 10210,
+  "test_size": 2553,
+  "macro_f1": 0.7984,
+  "weighted_f1": 0.7932,
+  "accuracy": 0.8014,
+  "per_class_f1": {
+    "none": 0.8222,
+    "Center": 0.9253,
+    "Donut": 0.8776,
+    "Edge-Loc": 0.7834,
+    "Edge-Ring": 0.9478,
+    "Loc": 0.6599,
+    "Random": 0.9046,
+    "Scratch": 0.3715,
+    "Near-full": 0.8929
+  },
+  "per_class_support": {
+    "none": 400,
+    "Center": 400,
+    "Donut": 111,
+    "Edge-Loc": 400,
+    "Edge-Ring": 400,
+    "Loc": 400,
+    "Random": 173,
+    "Scratch": 239,
+    "Near-full": 30
+  },
+  "total_elapsed_sec": 223.6
+}

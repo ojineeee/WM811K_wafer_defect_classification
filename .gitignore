@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# 원본 데이터(5.6GB)는 커밋하지 않습니다. run_all.sh가 자동으로 내려받습니다.
+data/raw/
+data/processed/

@@ -1,0 +1,29 @@
+{
+  "n_total_wafers": 811457,
+  "n_labeled_wafers": 172950,
+  "label_ratio_pct": 21.31,
+  "class_counts": {
+    "none": 147431,
+    "Center": 4294,
+    "Donut": 555,
+    "Edge-Loc": 5189,
+    "Edge-Ring": 9680,
+    "Loc": 3593,
+    "Random": 866,
+    "Scratch": 1193,
+    "Near-full": 149
+  },
+  "defect_only_total": 25519,
+  "most_rare_class": "Near-full",
+  "most_rare_count": 149,
+  "imbalance_ratio_none_vs_rarest": 989.5,
+  "wafer_size_height_range": [
+    15,
+    212
+  ],
+  "wafer_size_width_range": [
+    3,
+    204
+  ],
+  "n_unique_shapes": 346
+}
