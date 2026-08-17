@@ -19,5 +19,6 @@ cd src
 python3 eda.py
 python3 train_cnn.py
 python3 derived_features.py
+python3 augmentation.py
 
 echo "Done. See ../results/"

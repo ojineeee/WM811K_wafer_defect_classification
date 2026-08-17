@@ -1,0 +1,54 @@
+{
+  "augment_targets": [
+    "Scratch",
+    "Random",
+    "Donut",
+    "Near-full",
+    "Loc"
+  ],
+  "no_augmentation": {
+    "train_size": 10210,
+    "macro_f1": 0.8396,
+    "accuracy": 0.8327,
+    "per_class_f1": {
+      "none": 0.8606,
+      "Center": 0.9236,
+      "Donut": 0.8776,
+      "Edge-Loc": 0.814,
+      "Edge-Ring": 0.9544,
+      "Loc": 0.6804,
+      "Random": 0.8877,
+      "Scratch": 0.6087,
+      "Near-full": 0.9492
+    }
+  },
+  "with_augmentation": {
+    "train_size": 36880,
+    "macro_f1": 0.8815,
+    "accuracy": 0.8664,
+    "per_class_f1": {
+      "none": 0.862,
+      "Center": 0.9444,
+      "Donut": 0.9474,
+      "Edge-Loc": 0.8089,
+      "Edge-Ring": 0.9571,
+      "Loc": 0.7683,
+      "Random": 0.9464,
+      "Scratch": 0.75,
+      "Near-full": 0.9492
+    }
+  },
+  "macro_f1_delta": 0.0419,
+  "per_class_f1_delta": {
+    "none": 0.0014,
+    "Center": 0.0208,
+    "Donut": 0.0698,
+    "Edge-Loc": -0.0051,
+    "Edge-Ring": 0.0027,
+    "Loc": 0.0879,
+    "Random": 0.0587,
+    "Scratch": 0.1413,
+    "Near-full": 0.0
+  },
+  "elapsed_sec": 657.4
+}
