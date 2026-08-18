@@ -2,9 +2,7 @@
 import json
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from plot_style import plt
 import numpy as np
 
 from data import DEFECT_CLASSES, load_labeled, load_raw

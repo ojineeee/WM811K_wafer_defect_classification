@@ -7,9 +7,7 @@ WM-811K에는 SECOM 같은 타임스탬프가 없지만, lotName이 'lot1', 'lot
 import json
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from plot_style import plt
 import numpy as np
 import pandas as pd
 

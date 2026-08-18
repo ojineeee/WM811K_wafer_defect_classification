@@ -9,13 +9,10 @@ import json
 import time
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from plot_style import plt
 import numpy as np
 import pandas as pd
 import torch
-torch.set_num_threads(1)  # 재현성: CPU 멀티스레드 연산의 부동소수점 비결정성 제거
 import torch.nn as nn
 from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import train_test_split
