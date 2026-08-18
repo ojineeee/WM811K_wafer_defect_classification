@@ -389,23 +389,24 @@ lot 기준으로 다시 해결한 것이 다음 섹션이다.
 
 `lot_split_validation.py`(고유 lot 기준 두 갈래 분할)와 `final_evaluation.py`(모델 선택/최종
 평가 분리)는 각각 다른 문제를 해결했지만, 두 문제를 동시에 해결한 적은 없었다 —
-`lot_split_validation.py`는 lot 누수는 없지만 모델 선택과 최종 평가에 같은 test를 재사용하고,
-`final_evaluation.py`는 모델 선택은 분리했지만 lot 기준이 아니다. 이 스크립트는 두 방법론을
-합쳐 **lot 단위로 train(60%)/validation(20%)/test(20%)를 나누고, 그 안에서 모델 선택과
-최종 평가를 분리**한다.
+`lot_split_validation.py`는 lot 누수는 없지만 사전에 고정한 단일 모델을 train/test 2-way로
+평가한 진단 실험이라 validation 기반 모델 선택 절차가 없고, `final_evaluation.py`는 모델
+선택과 최종 평가를 분리했지만 lot 기준이 아니다. 이 스크립트는 두 방법론을 합쳐 **lot 단위로
+train(60%)/validation(20%)/test(20%)를 나누고, 그 안에서 모델 선택과 최종 평가를 분리**한다.
 
 ### 방법
 
 1. 고유 `lot_num`을 정렬해 앞 60%/다음 20%/마지막 20%를 train/val/test lot으로 지정
    (`lot_split_validation.py`와 동일한 lot 기반 분리 방식 — `assert`로 세 집합이 서로소임을
    확인).
-2. 클래스별 상한(2,000장)과 증강은 **train lot의 데이터에만** 적용. val/test는 계산 시간
-   제어를 위해 클래스당 최대 500장 상한을 두되, 그 이상은 업샘플링하지 않고 있는 만큼만 사용
-   (`lot_split_validation.py`의 test 처리 방식과 동일).
+2. train은 클래스당 최대 2,000장으로 제한하고 소수 클래스에 증강을 적용. val/test는 증강
+   없이 클래스당 최대 500장을 고정 시드로 무작위 추출한다(업샘플링 없음). 따라서 lot은
+   분리되지만 실제 생산 클래스 분포를 보존한 평가는 아니다.
 3. 4개 조합(baseline/derived/augment/both)을 train으로 학습해 **validation**에서 비교, 최선의
    조합을 결정 (test는 이 단계에서 보지 않음).
 4. 최선 조합만 train+validation으로 재학습해 **test에서 딱 한 번** 평가.
-5. 최종 모델·스케일러·test subset을 저장해 `grad_cam.py`가 이 모델을 재사용하도록 갱신
+5. 신뢰구간은 웨이퍼가 아니라 lot을 재표본추출하는 cluster bootstrap으로 계산.
+6. 최종 모델·스케일러·test subset을 저장해 `grad_cam.py`가 이 모델을 재사용하도록 갱신
    (이전에 저장했던 웨이퍼 단위 무작위 분할 모델을 대체).
 
 ### 결과
@@ -415,12 +416,12 @@ lot, subset 2,456장) / test lot45284~47542(2,153개 lot, subset 2,892장).
 
 **1단계: validation(신규 lot) 기준 조합 비교**
 
-| 조합 | Macro F1 | 95% CI |
-|---|---|---|
-| baseline | 0.7058 | 0.6778 ~ 0.7277 |
-| derived | 0.7149 | 0.6841 ~ 0.7410 |
-| augment | 0.7040 | 0.6700 ~ 0.7334 |
-| **both** | **0.7847** | 0.7507 ~ 0.8107 |
+| 조합 | Macro F1 |
+|---|---|
+| baseline | 0.7058 |
+| derived | 0.7149 |
+| augment | 0.7040 |
+| **both** | **0.7847** |
 
 무작위 분할(7단계 validation)과 마찬가지로 "both"가 가장 우수했다. 다만 절대 수치는 전반적으로
 더 낮다(baseline 0.7058 vs 무작위 분할의 0.7990) — 신규 lot에서는 문제 자체가 더 어렵다는
@@ -433,29 +434,32 @@ validation에서 확정된 "both" 조합을 train+validation(47,516장, 증강 �
 
 | 지표 | 값 |
 |---|---|
-| Macro F1 | **0.7207** (95% CI 0.6951~0.7422) |
-| Accuracy | 0.7095 |
+| Macro F1 | **0.7207** |
+| lot-cluster bootstrap 95% CI | **0.6947~0.7456** |
+| Accuracy | 0.7095 (class-capped subset 참고값) |
 
 클래스별 F1: `none` 0.7277, `Center` 0.8300, `Donut` 0.5417, `Edge-Loc` 0.6940, `Edge-Ring`
 0.6026, `Loc` 0.7120, `Random` 0.8509, `Scratch` 0.6009, `Near-full` 0.9268.
 
 ### 해석
 
-이 0.7207이 "신규 lot에 대한 일반화 성능"의 공식 수치다. 6단계(`lot_split_validation.py`)의
-거친 2-way 추정치(0.603)보다는 높지만(더 많은 train+val 데이터와 제대로 된 모델 선택
-덕분으로 보인다), 7단계(`final_evaluation.py`)의 IID 성능(0.8851)보다는 확실히 낮다 — 세
-수치를 함께 두면 이렇게 정리된다:
+0.7207을 클래스 상한이 적용된 신규 lot holdout의 대표 수치로 사용한다. 저장된 최종 모델과
+test subset을 `refresh_lot_test_ci.py`로 다시 추론해 점 추정치가 유지됨을 확인했고, 신뢰구간은
+같은 lot 안의 웨이퍼를 독립 표본으로 간주하지 않도록 lot 단위 cluster bootstrap으로 다시 계산했다.
+기존 wafer bootstrap 구간 0.6951~0.7422는 제거하고 0.6947~0.7456으로 교체했다. 이 구간은
+재학습 시드 변동과 실제 생산 클래스 분포를 반영하지 않는다. 6단계(`lot_split_validation.py`)의
+2-way 진단 결과(0.603), 7단계(`final_evaluation.py`)의 IID 성능(0.8851)과 함께 정리하면:
 
 | 스크립트 | 분할 기준 | 모델 선택/평가 분리 | Macro F1 | 답하는 질문 |
 |---|---|---|---|---|
 | `final_evaluation.py` | 웨이퍼 무작위 | O | 0.8851 | 같은 분포에서 패턴을 얼마나 잘 배우는가 |
-| `lot_split_validation.py` | lot 기준 | X (2-way) | 0.603 | 신규 lot에서도 통하는가 (거친 추정) |
-| `lot_final_evaluation.py` | lot 기준 | O (3-way) | **0.7207** | 신규 lot에서도 통하는가 (선택 편향 없이) |
+| `lot_split_validation.py` | lot 기준 | X (2-way) | 0.603 | 사전 고정 모델의 신규 lot 진단 결과 |
+| `lot_final_evaluation.py` | lot 기준 | O (3-way) | **0.7207** | validation 선택 후 독립 신규 lot 성능 |
 
 클래스별로는 Near-full(0.927)·Random(0.851)·Center(0.830)처럼 패턴이 뚜렷한 클래스는 여전히
-강건하지만, Edge-Ring(0.603)·Donut(0.542)·Scratch(0.601)처럼 형태가 미세하거나 이 test lot
-구간에서 표본 비율이 달라진 클래스에서 하락 폭이 크다. 실전 배포 성능을 제시한다면 0.8851이
-아니라 이 0.7207을 "신규 생산 배치에서 기대할 수 있는 성능"으로 보고하는 것이 정직하다.
+높았지만, Edge-Ring(0.603)·Donut(0.542)·Scratch(0.601)처럼 형태가 미세하거나 이 test lot
+구간에서 표본 비율이 달라진 클래스는 낮았다. 포트폴리오에서는 0.8851을 동일 분포 성능,
+0.7207을 class-capped 신규 lot holdout 성능으로 함께 제시한다.
 
 이 수치가 6단계(`lot_split_validation.py`)의 0.603, 7단계(`final_evaluation.py`)의 0.8851과
 어떻게 다른 질문에 답하는지 정리하면:
@@ -463,8 +467,8 @@ validation에서 확정된 "both" 조합을 train+validation(47,516장, 증강 �
 | 스크립트 | 분할 기준 | 모델 선택/평가 분리 | 답하는 질문 |
 |---|---|---|---|
 | `final_evaluation.py` | 웨이퍼 무작위 | O | 같은 분포에서 패턴을 얼마나 잘 배우는가 |
-| `lot_split_validation.py` | lot 기준 | X (2-way) | 신규 lot에서도 통하는가 (거친 추정) |
-| `lot_final_evaluation.py` | lot 기준 | O (3-way) | 신규 lot에서도 통하는가 (선택 편향 없이) |
+| `lot_split_validation.py` | lot 기준 | X (2-way) | 사전 고정 모델의 신규 lot 진단 결과 |
+| `lot_final_evaluation.py` | lot 기준 | O (3-way) | validation 선택 후 독립 신규 lot 성능 |
 
 ## Grad-CAM 설명력 분석 (`src/grad_cam.py`)
 
@@ -531,11 +535,15 @@ bash run_all.sh
 `src/lot_drift.py` → `src/lot_split_validation.py` → `src/ablation_with_ci.py` →
 `src/final_evaluation.py` → `src/lot_final_evaluation.py` → `src/grad_cam.py` 순서로 실행됩니다.
 
+전체 재학습 없이 저장된 lot 최종 모델의 test 점수와 lot-cluster CI만 갱신하려면
+`src/refresh_lot_test_ci.py`를 실행합니다. 이 스크립트는 저장된 모델·스케일러·test subset의
+조합이 맞는지 점 추정치로 검증한 뒤 JSON의 최종 test 구간만 갱신합니다.
+
 `ablation_with_ci.py`와 `final_evaluation.py`는 둘 다 4개 조합(baseline/derived/augment/both)을
 재학습합니다 — 전자는 참고용 탐색 실험(모델 선택과 최종 평가에 같은 test set 재사용, 위 한계
 참고), 후자가 train/val/test 3-way 분리로 이 문제를 해결했지만 여전히 웨이퍼 단위 무작위
 분할입니다("같은 분포에서의 성능" 수치). `lot_final_evaluation.py`가 lot 기준 3-way 분리로
-"신규 lot 일반화 성능"의 공식 수치를 낸다 — **`grad_cam.py`는 이 스크립트가 저장한 모델을
+class-capped 신규 lot holdout 대표 수치를 낸다 — **`grad_cam.py`는 이 스크립트가 저장한 모델을
 재사용**하므로(`final_evaluation.py`가 먼저 저장한 모델을 나중에 덮어씀) 재학습하지 않습니다.
 
 ## 프로젝트 구조
@@ -556,7 +564,8 @@ wm811k-defect-classification/
 │   ├── lot_split_validation.py    # lot 순서 분할 재검증 (고유 lot 기준, 2-way, 탐색용)
 │   ├── ablation_with_ci.py        # 파생변수x증강 2x2 조합 + 부트스트랩 신뢰구간 (탐색용)
 │   ├── final_evaluation.py        # train/val/test 3-way (웨이퍼 무작위) — 동일 분포 성능
-│   ├── lot_final_evaluation.py    # train/val/test 3-way (lot 기준) — 신규 lot 일반화 성능(공식)
+│   ├── lot_final_evaluation.py    # train/val/test 3-way (lot 기준) — 신규 lot holdout 대표 성능
+│   ├── refresh_lot_test_ci.py      # 저장 모델 재추론 + lot-cluster CI 갱신 (재학습 없음)
 │   └── grad_cam.py                # Grad-CAM 설명력 분석 (lot_final_evaluation의 모델 재사용)
 ├── results/
 │   ├── figures/                    # 01~24 시각화 결과

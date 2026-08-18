@@ -13,14 +13,15 @@ train/validation/test 세 곳에 함께 들어갈 수 있다는 뜻이다. `lot_
 
 1. 고유 lot을 lot 번호 순으로 정렬 후 앞 60%/다음 20%/마지막 20%를
    train/validation/test lot으로 나눈다 (같은 lot의 웨이퍼는 항상 한 곳에만 속함).
-2. 클래스별 상한(2,000장)과 증강은 **train lot에서 뽑은 데이터에만** 적용한다.
-   validation/test는 계산 시간을 제어하기 위해 클래스당 최대 500장 상한을 두되,
-   그 이상은 업샘플링하지 않고 그 lot 구간에 실제로 있는 만큼만 쓴다(순서를
-   바꾸지 않고 그대로 사용 — 무작위로 다시 섞지 않는다).
+2. train은 클래스당 최대 2,000장으로 제한하고 소수 클래스에만 증강을 적용한다.
+   validation/test는 증강하지 않으며, 계산 시간을 제어하기 위해 클래스당 최대
+   500장을 고정 시드로 무작위 추출한다(업샘플링은 하지 않는다).
 3. 4개 조합(baseline/derived/augment/both)을 train으로 학습해 validation에서
    비교하고 최선의 조합을 고른다 — test는 이 단계에서 전혀 보지 않는다.
 4. 최선 조합만 train+validation으로 재학습해 test에서 딱 한 번 평가한다. 이
-   test 점수가 "신규 lot에 대한 일반화 성능"의 공식 수치가 된다.
+   test 점수를 클래스 상한이 적용된 신규 lot holdout의 대표 성능으로 보고한다.
+5. 신뢰구간은 웨이퍼가 아니라 lot을 재표본추출하는 cluster bootstrap으로 계산해,
+   같은 lot 안의 웨이퍼들이 독립 표본이라는 과도한 가정을 피한다.
 
 이 수치는 `final_evaluation.py`가 보고하는 무작위 분할 수치(0.885, 동일 분포
 가정)와는 다른 질문에 답한다는 점에 유의해야 한다 — 후자는 "이 클래스 분포에서
@@ -55,7 +56,6 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 TRAIN_CAP_PER_CLASS = 2000
 EVAL_CAP_PER_CLASS = 500  # validation/test 계산량 제어용 상한 (업샘플링 아님)
 N_BOOTSTRAP = 1000
-RNG = np.random.default_rng(RANDOM_STATE)
 
 torch.manual_seed(RANDOM_STATE)
 np.random.seed(RANDOM_STATE)
@@ -124,14 +124,34 @@ def predict(model, X, F):
     return np.concatenate(preds)
 
 
-def bootstrap_macro_f1(y_true, preds_dict, n=N_BOOTSTRAP):
-    n_samples = len(y_true)
+def lot_cluster_bootstrap_macro_f1(
+    y_true, preds_dict, lot_ids, n=N_BOOTSTRAP, seed=RANDOM_STATE
+):
+    """lot을 복원추출하고 선택된 lot의 모든 웨이퍼로 Macro F1 CI를 계산한다."""
+    y_true = np.asarray(y_true)
+    lot_ids = np.asarray(lot_ids)
+    if len(y_true) != len(lot_ids):
+        raise ValueError("y_true와 lot_ids의 길이가 같아야 합니다.")
+
+    unique_lots = np.unique(lot_ids)
+    indices_by_lot = {lot: np.flatnonzero(lot_ids == lot) for lot in unique_lots}
+    rng = np.random.default_rng(seed)
+    labels = np.arange(len(DEFECT_CLASSES))
     scores = {k: [] for k in preds_dict}
     for _ in range(n):
-        idx = RNG.integers(0, n_samples, n_samples)
+        sampled_lots = rng.choice(unique_lots, size=len(unique_lots), replace=True)
+        idx = np.concatenate([indices_by_lot[lot] for lot in sampled_lots])
         yt = y_true[idx]
         for k, preds in preds_dict.items():
-            scores[k].append(f1_score(yt, preds[idx], average="macro"))
+            scores[k].append(
+                f1_score(
+                    yt,
+                    np.asarray(preds)[idx],
+                    labels=labels,
+                    average="macro",
+                    zero_division=0,
+                )
+            )
     result = {}
     for k, v in scores.items():
         result[k] = {
@@ -207,7 +227,9 @@ def main():
         val_point[name] = round(float(mf1), 4)
         print(f"[val:{name}] use_feats={use_feats}  macro_f1={mf1:.4f}  elapsed={time.time()-t0:.1f}s")
 
-    val_ci = bootstrap_macro_f1(y_val, val_preds)
+    val_ci = lot_cluster_bootstrap_macro_f1(
+        y_val, val_preds, val_sub["lot_num"].to_numpy(), seed=RANDOM_STATE
+    )
     best_name = max(val_point, key=val_point.get)
     print(f"\nval(신규 lot) 기준 최선 조합: {best_name} (macro_f1={val_point[best_name]})")
 
@@ -245,7 +267,12 @@ def main():
     print("\n=== 최종 lot-test 평가 (단 한 번, 신규 lot에 대한 일반화 성능) ===")
     print(classification_report(y_te, test_preds, target_names=DEFECT_CLASSES, zero_division=0))
 
-    test_ci = bootstrap_macro_f1(y_te, {best_name: test_preds})[best_name]
+    test_ci = lot_cluster_bootstrap_macro_f1(
+        y_te,
+        {best_name: test_preds},
+        test_sub["lot_num"].to_numpy(),
+        seed=RANDOM_STATE + 1,
+    )[best_name]
 
     # 최종 모델/스케일러 저장 (grad_cam.py 재사용 목적 — lot 기반 최종 모델로 갱신)
     torch.save(final_model.state_dict(), MODEL_DIR / "final_model.pt")
@@ -267,10 +294,12 @@ def main():
         pickle.dump(test_sub, f)
 
     result = {
-        "note": "부트스트랩 CI는 테스트셋 재표본추출 변동만 반영합니다 (재학습 시드 변동, "
-                "재수집 변동은 미포함). 이 수치는 final_evaluation.py의 무작위 분할 수치(0.885)와는 "
-                "다른 질문에 답합니다 — 이 스크립트는 lot(생산 배치) 단위로 train/val/test를 "
-                "분리했으므로, '신규 lot에서도 일반화되는가'를 답하는 것이 목적입니다.",
+        "note": "신뢰구간은 lot 단위 cluster bootstrap으로 test lot 재표본추출 변동을 "
+                "반영합니다(재학습 시드 변동과 재수집 변동은 미포함). validation/test는 "
+                "클래스당 최대 500장으로 제한한 subset이므로 Accuracy를 생산 분포의 정확도로 "
+                "해석하면 안 됩니다. 이 수치는 final_evaluation.py의 무작위 분할 수치(0.885)와 "
+                "다른 질문에 답합니다 — 신규 lot에서 패턴 분류 성능이 유지되는지를 평가합니다.",
+        "bootstrap_unit": "lot",
         "split": {
             "train_lots": len(train_lots), "val_lots": len(val_lots), "test_lots": len(test_lots),
             "train_lot_range": [int(min(train_lots)), int(max(train_lots))],
@@ -280,13 +309,15 @@ def main():
         },
         "stage1_val_selection": {
             "point_macro_f1": val_point,
-            "bootstrap_ci": val_ci,
+            "lot_cluster_bootstrap_ci": val_ci,
             "best_config": best_name,
         },
         "stage2_final_test_evaluation": {
             "config": best_name,
             "macro_f1": round(float(rep["macro avg"]["f1-score"]), 4),
-            "macro_f1_bootstrap_ci": {"ci_lower": test_ci["ci_lower"], "ci_upper": test_ci["ci_upper"]},
+            "macro_f1_lot_cluster_bootstrap_ci": {
+                "ci_lower": test_ci["ci_lower"], "ci_upper": test_ci["ci_upper"]
+            },
             "accuracy": round(float(rep["accuracy"]), 4),
             "per_class_f1": {c: round(float(rep[c]["f1-score"]), 4) for c in DEFECT_CLASSES},
             "per_class_support": {c: int(rep[c]["support"]) for c in DEFECT_CLASSES},
@@ -298,11 +329,9 @@ def main():
 
     fig, ax = plt.subplots(figsize=(8, 5))
     names = ["baseline", "derived", "augment", "both"]
-    means = [val_ci[n]["mean"] for n in names]
-    lowers = [val_ci[n]["mean"] - val_ci[n]["ci_lower"] for n in names]
-    uppers = [val_ci[n]["ci_upper"] - val_ci[n]["mean"] for n in names]
+    means = [val_point[n] for n in names]
     colors = ["#4C72B0", "#55A868", "#DD8452", "#C44E52"]
-    ax.bar(names, means, yerr=[lowers, uppers], capsize=5, color=colors)
+    ax.bar(names, means, color=colors)
     ax.axhline(result["stage2_final_test_evaluation"]["macro_f1"], color="black", linestyle="--",
                 label=f"최종 lot-test macro F1 ({best_name}, 1회 평가)")
     ax.set_ylabel("Macro F1")

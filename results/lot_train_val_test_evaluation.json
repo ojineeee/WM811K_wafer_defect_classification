@@ -1,5 +1,5 @@
 {
-  "note": "부트스트랩 CI는 테스트셋 재표본추출 변동만 반영합니다 (재학습 시드 변동, 재수집 변동은 미포함). 이 수치는 final_evaluation.py의 무작위 분할 수치(0.885)와는 다른 질문에 답합니다 — 이 스크립트는 lot(생산 배치) 단위로 train/val/test를 분리했으므로, '신규 lot에서도 일반화되는가'를 답하는 것이 목적입니다.",
+  "note": "최종 test 신뢰구간은 저장된 최종 모델을 재학습하지 않고 test lot을 재표본추출하는 lot-cluster bootstrap으로 계산했습니다. 재학습 시드 변동, 재수집 변동, 클래스 상한 적용 전 생산 분포는 반영하지 않습니다.",
   "split": {
     "train_lots": 6457,
     "val_lots": 2152,
@@ -27,36 +27,15 @@
       "augment": 0.704,
       "both": 0.7847
     },
-    "bootstrap_ci": {
-      "baseline": {
-        "mean": 0.7047,
-        "ci_lower": 0.6778,
-        "ci_upper": 0.7277
-      },
-      "derived": {
-        "mean": 0.7139,
-        "ci_lower": 0.6841,
-        "ci_upper": 0.741
-      },
-      "augment": {
-        "mean": 0.7028,
-        "ci_lower": 0.67,
-        "ci_upper": 0.7334
-      },
-      "both": {
-        "mean": 0.7834,
-        "ci_lower": 0.7507,
-        "ci_upper": 0.8107
-      }
-    },
-    "best_config": "both"
+    "best_config": "both",
+    "ci_note": "기존 wafer bootstrap CI는 제거했습니다. validation의 lot-cluster CI는 전체 모델 선택 단계를 다시 실행할 때 생성됩니다."
   },
   "stage2_final_test_evaluation": {
     "config": "both",
     "macro_f1": 0.7207,
-    "macro_f1_bootstrap_ci": {
-      "ci_lower": 0.6951,
-      "ci_upper": 0.7422
+    "macro_f1_lot_cluster_bootstrap_ci": {
+      "ci_lower": 0.6947,
+      "ci_upper": 0.7456
     },
     "accuracy": 0.7095,
     "per_class_f1": {
@@ -82,5 +61,6 @@
       "Near-full": 38
     }
   },
-  "elapsed_sec": 4372.4
+  "elapsed_sec": 4372.4,
+  "bootstrap_unit": "lot"
 }
