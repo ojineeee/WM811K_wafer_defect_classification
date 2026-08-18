@@ -4,10 +4,12 @@ SECOM 프로젝트의 SHAP과 대칭되는 설명력 분석. SHAP은 "어떤 센
 기여했는가"를 숫자로 분해했다면, Grad-CAM은 "이미지의 어느 영역이
 판단에 기여했는가"를 히트맵으로 보여준다.
 
-final_evaluation.py가 train/val/test 분리로 선택하고 test에서 딱 한 번
-평가한 최종 모델(results/models/final_model.pt)과 그때 쓴 동일한 test
-split을 그대로 불러와 재사용한다 — 재학습하면서 다시 시드가 갈라지거나
-test set이 또 바뀌는 걸 막기 위함이다.
+lot_final_evaluation.py(lot 기준 train/val/test 분리)가 선택하고 test에서
+딱 한 번 평가한 최종 모델(results/models/final_model.pt)과 그때 쓴 동일한
+test split을 그대로 불러와 재사용한다 — 재학습하면서 다시 시드가 갈라지거나
+test set이 또 바뀌는 걸 막기 위함이다. (구버전 final_evaluation.py가 저장한
+웨이퍼 단위 무작위 분할 모델도 `split_type` 필드로 구분해 계속 로드할 수
+있다.)
 
 한계: Grad-CAM은 이 모델의 CNN(이미지) 경로에 걸린 hook만 설명한다.
 최종 조합이 파생변수(derived features)를 함께 쓰는 하이브리드 모델이라면,
@@ -38,17 +40,29 @@ np.random.seed(RANDOM_STATE)
 
 
 def load_final_model():
-    """final_evaluation.py가 저장한 최종 모델·스케일러·test 인덱스를 그대로 불러온다."""
+    """최종 평가 스크립트가 저장한 최종 모델·스케일러·test 데이터를 그대로 불러온다.
+
+    lot_final_evaluation.py(lot 기반, split_type="lot_based")와 구버전
+    final_evaluation.py(웨이퍼 단위 무작위 분할) 둘 다 지원한다.
+    """
     with open(MODEL_DIR / "final_test_indices.json", encoding="utf-8") as f:
         meta = json.load(f)
     with open(MODEL_DIR / "final_scaler.pkl", "rb") as f:
         scaler = pickle.load(f)
 
-    df = load_labeled()
-    subset = build_balanced_subset(df)
-    te_idx = meta["te_idx"]
-    test_maps = [subset["waferMap"].iloc[i] for i in te_idx]
-    test_labels = [subset["failureType"].iloc[i] for i in te_idx]
+    if meta.get("split_type") == "lot_based":
+        with open(MODEL_DIR / "lot_test_subset.pkl", "rb") as f:
+            test_sub = pickle.load(f)
+        test_maps = list(test_sub["waferMap"])
+        test_labels = list(test_sub["failureType"])
+        n_test = len(test_sub)
+    else:
+        df = load_labeled()
+        subset = build_balanced_subset(df)
+        te_idx = meta["te_idx"]
+        test_maps = [subset["waferMap"].iloc[i] for i in te_idx]
+        test_labels = [subset["failureType"].iloc[i] for i in te_idx]
+        n_test = len(te_idx)
 
     label_to_idx = {c: i for i, c in enumerate(DEFECT_CLASSES)}
     X_te = np.stack([resize_wafer(m) for m in test_maps])
@@ -64,7 +78,8 @@ def load_final_model():
     model.load_state_dict(torch.load(MODEL_DIR / "final_model.pt", map_location="cpu"))
     model.eval()
 
-    print(f"최종 모델 로드 완료 (config={meta['best_config']}, use_feats={use_feats}, test={len(te_idx)})")
+    print(f"최종 모델 로드 완료 (config={meta['best_config']}, use_feats={use_feats}, "
+          f"split_type={meta.get('split_type', 'random')}, test={n_test})")
     return model, X_te, F_te, y_te, test_maps, test_labels, label_to_idx
 
 
