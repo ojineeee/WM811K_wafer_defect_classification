@@ -435,6 +435,7 @@ validation에서 확정된 "both" 조합을 train+validation(47,516장, 증강 �
 | 지표 | 값 |
 |---|---|
 | Macro F1 | **0.7207** |
+| lot-cluster bootstrap 95% CI | **0.6947~0.7456** |
 | Accuracy | 0.7095 (class-capped subset 참고값) |
 
 클래스별 F1: `none` 0.7277, `Center` 0.8300, `Donut` 0.5417, `Edge-Loc` 0.6940, `Edge-Ring`
@@ -442,9 +443,11 @@ validation에서 확정된 "both" 조합을 train+validation(47,516장, 증강 �
 
 ### 해석
 
-0.7207을 클래스 상한이 적용된 신규 lot holdout의 대표 수치로 사용한다. 신뢰구간은 같은 lot
-안의 웨이퍼를 독립 표본으로 간주하지 않도록 lot 단위 cluster bootstrap으로 계산한다. 다만
-재학습 시드 변동과 실제 생산 클래스 분포는 반영하지 않는다. 6단계(`lot_split_validation.py`)의
+0.7207을 클래스 상한이 적용된 신규 lot holdout의 대표 수치로 사용한다. 저장된 최종 모델과
+test subset을 `refresh_lot_test_ci.py`로 다시 추론해 점 추정치가 유지됨을 확인했고, 신뢰구간은
+같은 lot 안의 웨이퍼를 독립 표본으로 간주하지 않도록 lot 단위 cluster bootstrap으로 다시 계산했다.
+기존 wafer bootstrap 구간 0.6951~0.7422는 제거하고 0.6947~0.7456으로 교체했다. 이 구간은
+재학습 시드 변동과 실제 생산 클래스 분포를 반영하지 않는다. 6단계(`lot_split_validation.py`)의
 2-way 진단 결과(0.603), 7단계(`final_evaluation.py`)의 IID 성능(0.8851)과 함께 정리하면:
 
 | 스크립트 | 분할 기준 | 모델 선택/평가 분리 | Macro F1 | 답하는 질문 |
@@ -532,6 +535,10 @@ bash run_all.sh
 `src/lot_drift.py` → `src/lot_split_validation.py` → `src/ablation_with_ci.py` →
 `src/final_evaluation.py` → `src/lot_final_evaluation.py` → `src/grad_cam.py` 순서로 실행됩니다.
 
+전체 재학습 없이 저장된 lot 최종 모델의 test 점수와 lot-cluster CI만 갱신하려면
+`src/refresh_lot_test_ci.py`를 실행합니다. 이 스크립트는 저장된 모델·스케일러·test subset의
+조합이 맞는지 점 추정치로 검증한 뒤 JSON의 최종 test 구간만 갱신합니다.
+
 `ablation_with_ci.py`와 `final_evaluation.py`는 둘 다 4개 조합(baseline/derived/augment/both)을
 재학습합니다 — 전자는 참고용 탐색 실험(모델 선택과 최종 평가에 같은 test set 재사용, 위 한계
 참고), 후자가 train/val/test 3-way 분리로 이 문제를 해결했지만 여전히 웨이퍼 단위 무작위
@@ -558,6 +565,7 @@ wm811k-defect-classification/
 │   ├── ablation_with_ci.py        # 파생변수x증강 2x2 조합 + 부트스트랩 신뢰구간 (탐색용)
 │   ├── final_evaluation.py        # train/val/test 3-way (웨이퍼 무작위) — 동일 분포 성능
 │   ├── lot_final_evaluation.py    # train/val/test 3-way (lot 기준) — 신규 lot holdout 대표 성능
+│   ├── refresh_lot_test_ci.py      # 저장 모델 재추론 + lot-cluster CI 갱신 (재학습 없음)
 │   └── grad_cam.py                # Grad-CAM 설명력 분석 (lot_final_evaluation의 모델 재사용)
 ├── results/
 │   ├── figures/                    # 01~24 시각화 결과

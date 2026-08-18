@@ -239,11 +239,12 @@ validation에서 확정된 "파생변수+증강" 조합을 train+validation(47,5
 | 지표 | 값 |
 |---|---|
 | **Macro F1** | **0.721** |
+| **lot-cluster bootstrap 95% CI** | **0.695~0.746** |
 | Accuracy | 71.0% *(class-capped subset 참고값)* |
 
 <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/24_lot_train_val_test_evaluation.png" width="640" alt="lot 기준 Val 조합 선택 vs 최종 lot-test 평가">
 
-**0.721을 이 프로젝트의 신규 lot holdout 대표 수치로 사용합니다.** 다만 클래스당 최대 500장으로 제한한 평가셋이므로 생산 분포의 Accuracy가 아니라 Macro F1 중심으로 해석합니다. 신뢰구간은 같은 lot 안의 웨이퍼를 독립 표본으로 취급하지 않도록 `lot_final_evaluation.py`에서 **lot 단위 cluster bootstrap**으로 계산합니다. 6단계의 2-way 진단 결과(0.603), 7단계의 IID 성능(0.885)과 함께 보면 평가 질문의 차이가 분명해집니다.
+**0.721을 이 프로젝트의 신규 lot holdout 대표 수치로 사용합니다.** 다만 클래스당 최대 500장으로 제한한 평가셋이므로 생산 분포의 Accuracy가 아니라 Macro F1 중심으로 해석합니다. 신뢰구간은 같은 lot 안의 웨이퍼를 독립 표본으로 취급하지 않도록 **lot 단위 cluster bootstrap**으로 계산했습니다. 저장된 최종 모델을 재학습하지 않고 다시 추론해 점 추정치 0.7207이 동일함을 확인한 뒤, 기존 wafer bootstrap 구간을 0.6947~0.7456으로 교체했습니다. 6단계의 2-way 진단 결과(0.603), 7단계의 IID 성능(0.885)과 함께 보면 평가 질문의 차이가 분명해집니다.
 
 | 평가 방식 | Macro F1 | 의미 |
 |---|---|---|
@@ -315,3 +316,10 @@ Scratch 사례 4개를 무작위로 더 뽑아봤습니다. 결과가 섞여 있
 bash run_all.sh
 ```
 데이터 다운로드(약 330MB, 로그인 불필요)부터 학습까지 한 번에 실행됩니다. 시드를 고정해뒀지만, CPU 병렬 연산 특성상 아주 미세한 수치 차이는 있을 수 있습니다.
+
+이미 저장된 lot 최종 모델로 test 점수와 lot-cluster 신뢰구간만 다시 계산하려면 재학습 없이 아래 명령을 실행합니다.
+
+```bash
+cd src
+python3 refresh_lot_test_ci.py
+```
