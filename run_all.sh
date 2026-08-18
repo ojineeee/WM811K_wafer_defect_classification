@@ -20,5 +20,8 @@ python3 eda.py
 python3 train_cnn.py
 python3 derived_features.py
 python3 augmentation.py
+python3 lot_drift.py
+python3 lot_split_validation.py
+python3 ablation_with_ci.py
 
 echo "Done. See ../results/"

@@ -186,30 +186,97 @@ Scratch의 저조한 성능을 분석하던 중, 클래스별 불량 밀도에�
 
 증강을 적용한 5개 클래스가 전부 개선되었고(Near-full은 이미 F1 0.95로 포화 상태라 변화 없음), 증강하지 않은 Center/Edge-Ring/none/Edge-Loc은 거의 변화가 없거나 소폭 하락에 그침 — 증강 효과가 대상 클래스에 국한되어 나타나는, 기대한 그대로의 패턴.
 
-주의: 이 실행의 "증강 없음" macro F1(0.8396)은 4단계에서 보고한 0.8436과 소폭 다른데, 이는 별도 프로세스 재실행에 따른 PyTorch CPU 연산의 미세한 비결정성 때문이며 두 수치 모두 유효한 반복 실행 결과입니다.
+주의: 이 실행의 "증강 없음" macro F1(0.8396)은 4단계에서 보고한 0.8436과 소폭 다른데, 이는 별도 프로세스 재실행에 따른 PyTorch CPU 연산의 미세한 비결정성 때문이며 두 수치 모두 유효한 반복 실행 결과입니다. (이후 `train_cnn.py`, `derived_features.py`, `augmentation.py`에 `torch.set_num_threads(1)`을 적용해 앞으로의 실행부터는 이 문제가 재발하지 않도록 고쳤습니다.)
+
+## lot 순서 기반 drift 분석 및 재검증 (`src/lot_drift.py`, `src/lot_split_validation.py`)
+
+### 동기
+
+[SECOM 프로젝트](https://github.com/ojineeee/SECOM_defect_prediction)에서 무작위 분할이 시간
+드리프트를 감추고 있었다는 걸 확인한 뒤, 이 프로젝트에도 같은 위험이 있는지 점검이 빠져 있었다는
+걸 뒤늦게 발견했다. WM-811K에는 타임스탬프가 없지만 `lotName`이 `lot{N}` 형식의 순번이라 생산
+순서의 proxy로 사용했다.
+
+### drift 분석 방법 및 결과
+
+`lot_num`(정수 추출) 기준으로 라벨된 172,950건을 정렬 후 10분위로 나눠 불량 비율(`failureType
+!= 'none'`)을 계산했다.
+
+| 분위 | 불량 비율 |
+|---|---|
+| 0 | 0.4740 |
+| 1 | 0.5402 |
+| 2 | 0.0611 |
+| 3 | 0.0490 |
+| 4 | 0.0346 |
+| 5 | 0.0591 |
+| 6 | 0.0591 |
+| 7 | 0.1006 |
+| 8 | 0.0361 |
+| 9 | 0.0616 |
+
+초반 2개 분위(전체의 20%) 평균 0.5071 vs 나머지 8개 분위 평균 0.0576 — **약 8.8배 차이**로,
+SECOM에서 관찰된 드리프트(8.56%→4.72%, 약 1.8배)보다 훨씬 극단적이다. lot 순서 자체가 균등
+간격의 시간이 아니라는 점(초반 lot일수록 결함 비율이 높다는 건 라벨링 정책 혹은 실제 초기 공정
+불안정성 둘 다 가능한 원인이며, 메타데이터만으로는 구분 불가)에 유의해야 한다.
+
+### 재검증 방법
+
+- `df.sort_values('lot_num')` 후 행 순서 기준 앞 80% / 뒤 20%로 분할 (SECOM의 시간순 분할과
+  동일한 논리, 개별 lot을 쪼개지는 않음 — 한 lot 내 wafer는 모두 같은 쪽에 포함).
+- train: 4단계와 동일하게 클래스별 최대 2,000장 상한. test: 클래스별 최대 500장 상한이지만
+  **미래(뒤 20%) 구간에 자연적으로 존재하는 만큼만** 사용 — 업샘플링하지 않음.
+- 모델: `HybridCNN`(CNN + 8개 파생변수), 나머지 하이퍼파라미터는 4단계와 동일.
+
+### 결과
+
+| 분할 | Macro F1 | Accuracy |
+|---|---|---|
+| 무작위 (기존, 4단계) | 0.8436 | - |
+| lot 순서 | **0.6110** | 0.6434 |
+
+test 클래스별 실제 표본 수(자연 분포): none 500, Edge-Loc 500, Loc 356, Scratch 239,
+Edge-Ring 229, Center 92, Random 37, Near-full 16, **Donut 5**. Donut처럼 표본이 5개뿐인
+클래스는 F1 해석에 주의가 필요하다(단 1~2건의 오분류로도 크게 흔들림).
+
+클래스별 F1: `none` 0.784, `Center` 0.719, `Donut` 0.286, `Edge-Loc` 0.674, `Edge-Ring` 0.642,
+`Loc` 0.596, `Random` 0.581, `Scratch` 0.276, `Near-full` 0.941.
+
+### 해석
+
+SECOM처럼 완전히 0으로 붕괴하지는 않았다 — 웨이퍼맵의 결함 패턴(모양)은 센서 값보다 시간에
+더 강건한 시각적 특징이기 때문으로 보인다. 그러나 Macro F1이 0.84→0.61로 하락한 것은 무시할
+수 없는 수준이며, 특히 원래도 어려웠던 Scratch(0.37→0.28 수준)·Donut처럼 형태가 미세하거나
+표본이 적은 클래스에서 하락 폭이 크다. Near-full처럼 시각적으로 매우 뚜렷한 패턴은 분할 방식과
+무관하게 안정적으로 높은 성능을 유지한다.
 
 ## 재현 방법
 
 ```bash
 bash run_all.sh
 ```
-내부적으로 `data/raw/`에 zip을 다운로드 → 압축 해제 → `pip install` → `src/eda.py` → `src/train_cnn.py` → `src/derived_features.py` → `src/augmentation.py` 순서로 실행됩니다.
+내부적으로 `data/raw/`에 zip을 다운로드 → 압축 해제 → `pip install` →
+`src/eda.py` → `src/train_cnn.py` → `src/derived_features.py` → `src/augmentation.py` →
+`src/lot_drift.py` → `src/lot_split_validation.py` → `src/ablation_with_ci.py` 순서로 실행됩니다.
 
 ## 프로젝트 구조
 
 ```
 wm811k-defect-classification/
 ├── data/
-│   └── raw/                  # 원본 zip + 압축 해제 (run_all.sh가 자동 다운로드)
+│   └── raw/                     # 원본 zip + 압축 해제 (run_all.sh가 자동 다운로드)
 ├── src/
-│   ├── data.py                # pkl 로드 + 라벨 필터링
-│   ├── eda.py                 # 클래스 분포, 크기 분포, 샘플 시각화
-│   ├── train_cnn.py           # 전처리 + CNN 학습 + 평가
-│   └── derived_features.py    # 파생변수 설계 + 유무 비교 실험
+│   ├── data.py                    # pkl 로드 + 라벨 필터링
+│   ├── eda.py                     # 클래스 분포, 크기 분포, 샘플 시각화
+│   ├── train_cnn.py               # 전처리 + CNN 학습 + 평가
+│   ├── derived_features.py        # 파생변수 설계 + 유무 비교 실험
+│   ├── augmentation.py            # 회전/반전 증강 실험
+│   ├── lot_drift.py               # lot 순서 기반 drift 분석
+│   ├── lot_split_validation.py    # lot 순서 분할 재검증
+│   └── ablation_with_ci.py        # 파생변수x증강 2x2 조합 + 부트스트랩 신뢰구간
 ├── results/
-│   ├── figures/                # 01~07 시각화 결과
-│   ├── eda_summary.json, cnn_final_report.json
-│   └── derived_feature_experiment.json, derived_feature_by_class.csv
+│   ├── figures/                    # 01~19 시각화 결과
+│   └── *.json, *.csv               # 수치 결과
 ├── requirements.txt
 └── run_all.sh
 ```

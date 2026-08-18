@@ -1,0 +1,38 @@
+{
+  "train_lot_range": [
+    1,
+    46088
+  ],
+  "test_lot_range": [
+    46088,
+    47542
+  ],
+  "train_defect_rate": 0.1722,
+  "test_defect_rate": 0.0488,
+  "test_class_support": {
+    "none": 500,
+    "Center": 92,
+    "Donut": 5,
+    "Edge-Loc": 500,
+    "Edge-Ring": 229,
+    "Loc": 356,
+    "Random": 37,
+    "Scratch": 239,
+    "Near-full": 16
+  },
+  "lot_split_macro_f1": 0.611,
+  "lot_split_accuracy": 0.6434,
+  "lot_split_per_class_f1": {
+    "none": 0.7836,
+    "Center": 0.7192,
+    "Donut": 0.2857,
+    "Edge-Loc": 0.6743,
+    "Edge-Ring": 0.6423,
+    "Loc": 0.5957,
+    "Random": 0.5812,
+    "Scratch": 0.2762,
+    "Near-full": 0.9412
+  },
+  "random_split_reference_macro_f1": 0.8436,
+  "elapsed_sec": 192.5
+}
