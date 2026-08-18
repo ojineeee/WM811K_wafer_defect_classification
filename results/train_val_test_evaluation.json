@@ -1,0 +1,60 @@
+{
+  "note": "부트스트랩 CI는 테스트셋 재표본추출 변동만 반영합니다 (재학습 시드 변동, 재수집 변동은 미포함).",
+  "split": {
+    "train": 7657,
+    "val": 2553,
+    "test": 2553
+  },
+  "stage1_val_selection": {
+    "point_macro_f1": {
+      "baseline": 0.799,
+      "derived": 0.8297,
+      "augment": 0.8016,
+      "both": 0.8705
+    },
+    "bootstrap_ci": {
+      "baseline": {
+        "mean": 0.7993,
+        "ci_lower": 0.7827,
+        "ci_upper": 0.8141
+      },
+      "derived": {
+        "mean": 0.8298,
+        "ci_lower": 0.8141,
+        "ci_upper": 0.8462
+      },
+      "augment": {
+        "mean": 0.8019,
+        "ci_lower": 0.7865,
+        "ci_upper": 0.8166
+      },
+      "both": {
+        "mean": 0.8707,
+        "ci_lower": 0.8575,
+        "ci_upper": 0.8845
+      }
+    },
+    "best_config": "both"
+  },
+  "stage2_final_test_evaluation": {
+    "config": "both",
+    "macro_f1": 0.8851,
+    "macro_f1_bootstrap_ci": {
+      "ci_lower": 0.8676,
+      "ci_upper": 0.8996
+    },
+    "accuracy": 0.8844,
+    "per_class_f1": {
+      "none": 0.878,
+      "Center": 0.9531,
+      "Donut": 0.9369,
+      "Edge-Loc": 0.8351,
+      "Edge-Ring": 0.9749,
+      "Loc": 0.8068,
+      "Random": 0.9235,
+      "Scratch": 0.78,
+      "Near-full": 0.8772
+    }
+  },
+  "elapsed_sec": 3094.1
+}

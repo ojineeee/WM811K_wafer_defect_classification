@@ -60,8 +60,16 @@ def main():
     df["lot_num"] = df["lotName"].str.extract(r"lot(\d+)").astype(int)
     df = df.sort_values("lot_num").reset_index(drop=True)
 
-    split_point = int(len(df) * 0.8)
-    pool_train, pool_test = df.iloc[:split_point], df.iloc[split_point:]
+    # 행(웨이퍼) 개수가 아니라 "고유 lot" 개수 기준으로 80/20을 나눠야 같은 lot이
+    # train/test 양쪽에 걸치지 않는다. 이전 버전은 len(df)*0.8을 행 인덱스로 잘라
+    # split 경계에 걸친 lot 하나가 train/test에 모두 섞여 들어가는 lot 누수가 있었다.
+    unique_lots = np.sort(df["lot_num"].unique())
+    lot_split_idx = int(len(unique_lots) * 0.8)
+    train_lots, test_lots = set(unique_lots[:lot_split_idx]), set(unique_lots[lot_split_idx:])
+    assert train_lots.isdisjoint(test_lots)
+
+    pool_train = df[df["lot_num"].isin(train_lots)]
+    pool_test = df[df["lot_num"].isin(test_lots)]
 
     print(f"train lot 범위: lot{pool_train['lot_num'].min()} ~ lot{pool_train['lot_num'].max()}")
     print(f"test  lot 범위: lot{pool_test['lot_num'].min()} ~ lot{pool_test['lot_num'].max()}")

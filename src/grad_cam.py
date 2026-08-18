@@ -4,97 +4,67 @@ SECOM 프로젝트의 SHAP과 대칭되는 설명력 분석. SHAP은 "어떤 센
 기여했는가"를 숫자로 분해했다면, Grad-CAM은 "이미지의 어느 영역이
 판단에 기여했는가"를 히트맵으로 보여준다.
 
-가장 성능이 좋았던 조합(파생변수 + 증강, ablation_with_ci.py의 "both")
-모델을 다시 학습시킨 뒤, 마지막 conv 레이어(공간 정보가 남아있는 마지막
-지점)의 활성값과 그레디언트로 클래스별 관심 영역을 계산한다.
+final_evaluation.py가 train/val/test 분리로 선택하고 test에서 딱 한 번
+평가한 최종 모델(results/models/final_model.pt)과 그때 쓴 동일한 test
+split을 그대로 불러와 재사용한다 — 재학습하면서 다시 시드가 갈라지거나
+test set이 또 바뀌는 걸 막기 위함이다.
+
+한계: Grad-CAM은 이 모델의 CNN(이미지) 경로에 걸린 hook만 설명한다.
+최종 조합이 파생변수(derived features)를 함께 쓰는 하이브리드 모델이라면,
+분류기 직전에 concat되는 파생변수 경로는 Grad-CAM으로 설명되지 않는
+"보이지 않는 두 번째 경로"로 남는다 — 아래 히트맵은 "이미지만으로 얼마나
+설명되는가"이지 "모델의 전체 판단 근거"가 아니다.
 """
 import json
-import time
+import pickle
 from pathlib import Path
 
 from plot_style import plt
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from sklearn.metrics import f1_score
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from torch.utils.data import DataLoader
 
 from data import DEFECT_CLASSES, load_labeled
-from derived_features import FEATURE_NAMES, HybridCNN, HybridDataset, extract_features
-from train_cnn import BATCH_SIZE, EPOCHS, RANDOM_STATE, build_balanced_subset, resize_wafer
-from augmentation import AUGMENT_TARGETS, augment_variants
+from derived_features import FEATURE_NAMES, HybridCNN, extract_features
+from train_cnn import RANDOM_STATE, build_balanced_subset, resize_wafer
 
 ROOT = Path(__file__).resolve().parent.parent
 FIG_DIR = ROOT / "results" / "figures"
+MODEL_DIR = ROOT / "results" / "models"
 
+RNG = np.random.default_rng(RANDOM_STATE)
 torch.manual_seed(RANDOM_STATE)
 np.random.seed(RANDOM_STATE)
 
 
-def build_augmented(subset, idx):
-    maps, labels = [], []
-    for i in idx:
-        m = subset["waferMap"].iloc[i]
-        cls = subset["failureType"].iloc[i]
-        variants = augment_variants(m) if cls in AUGMENT_TARGETS else [m]
-        for v in variants:
-            maps.append(v)
-            labels.append(cls)
-    return maps, labels
+def load_final_model():
+    """final_evaluation.py가 저장한 최종 모델·스케일러·test 인덱스를 그대로 불러온다."""
+    with open(MODEL_DIR / "final_test_indices.json", encoding="utf-8") as f:
+        meta = json.load(f)
+    with open(MODEL_DIR / "final_scaler.pkl", "rb") as f:
+        scaler = pickle.load(f)
 
-
-def train_best_model():
-    """ablation_with_ci.py의 "both"(파생변수+증강) 조건과 동일하게 재학습."""
     df = load_labeled()
     subset = build_balanced_subset(df)
-    labels_arr = subset["failureType"].values
-    idx = np.arange(len(subset))
-    tr_idx, te_idx = train_test_split(idx, test_size=0.2, stratify=labels_arr, random_state=RANDOM_STATE)
-
+    te_idx = meta["te_idx"]
     test_maps = [subset["waferMap"].iloc[i] for i in te_idx]
     test_labels = [subset["failureType"].iloc[i] for i in te_idx]
-    aug_maps, aug_labels = build_augmented(subset, tr_idx)
 
     label_to_idx = {c: i for i, c in enumerate(DEFECT_CLASSES)}
-    X_tr = np.stack([resize_wafer(m) for m in aug_maps])
-    F_tr_raw = np.array([extract_features(m) for m in aug_maps], dtype=np.float32)
-    y_tr = np.array([label_to_idx[c] for c in aug_labels])
     X_te = np.stack([resize_wafer(m) for m in test_maps])
-    F_te_raw = np.array([extract_features(m) for m in test_maps], dtype=np.float32)
     y_te = np.array([label_to_idx[c] for c in test_labels])
+    use_feats = meta["use_feats"]
+    if use_feats:
+        F_te_raw = np.array([extract_features(m) for m in test_maps], dtype=np.float32)
+        F_te = scaler.transform(F_te_raw).astype(np.float32)
+    else:
+        F_te = np.zeros((len(X_te), len(FEATURE_NAMES)), dtype=np.float32)
 
-    scaler = StandardScaler().fit(F_tr_raw)
-    F_tr = scaler.transform(F_tr_raw).astype(np.float32)
-    F_te = scaler.transform(F_te_raw).astype(np.float32)
-
-    train_loader = DataLoader(HybridDataset(X_tr, F_tr, y_tr), batch_size=BATCH_SIZE, shuffle=True)
-    counts = np.bincount(y_tr, minlength=len(DEFECT_CLASSES))
-    weights = torch.tensor(1.0 / np.sqrt(counts + 1), dtype=torch.float32)
-    weights = weights / weights.sum() * len(DEFECT_CLASSES)
-
-    torch.manual_seed(RANDOM_STATE)
-    model = HybridCNN(len(DEFECT_CLASSES), F_tr.shape[1], use_feats=True)
-    criterion = nn.CrossEntropyLoss(weight=weights)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-
-    t0 = time.time()
-    for epoch in range(EPOCHS):
-        model.train()
-        for xb, fb, yb in train_loader:
-            optimizer.zero_grad()
-            criterion(model(xb, fb), yb).backward()
-            optimizer.step()
-        print(f"epoch {epoch+1}/{EPOCHS} done, elapsed={time.time()-t0:.0f}s")
-
+    model = HybridCNN(len(DEFECT_CLASSES), len(FEATURE_NAMES), use_feats=use_feats)
+    model.load_state_dict(torch.load(MODEL_DIR / "final_model.pt", map_location="cpu"))
     model.eval()
-    with torch.no_grad():
-        preds = model(torch.from_numpy(X_te).unsqueeze(1),
-                       torch.from_numpy(F_te)).argmax(1).numpy()
-    print("test macro F1:", round(float(f1_score(y_te, preds, average="macro")), 4))
 
+    print(f"최종 모델 로드 완료 (config={meta['best_config']}, use_feats={use_feats}, test={len(te_idx)})")
     return model, X_te, F_te, y_te, test_maps, test_labels, label_to_idx
 
 
@@ -131,7 +101,7 @@ class GradCAM:
 
 
 def main():
-    model, X_te, F_te, y_te, test_maps, test_labels, label_to_idx = train_best_model()
+    model, X_te, F_te, y_te, test_maps, test_labels, label_to_idx = load_final_model()
 
     # 마지막 conv 블록: features[6]=Conv2d, [7]=ReLU (여기서 hook, AdaptiveAvgPool 이전 -> 16x16 공간정보 보존)
     target_layer = model.features[7]
@@ -142,18 +112,22 @@ def main():
     for ax, cls in zip(axes.flat, DEFECT_CLASSES):
         cls_idx = label_to_idx[cls]
         candidates = np.where((y_te == cls_idx))[0]
-        # 정확히 맞춘 사례 중 하나를 선택
-        chosen = None
+        # 정확히 맞춘 사례 중 무작위로 하나를 선택 ("첫 번째로 맞춘 사례"는 우연히 쉬운
+        # 예시일 수 있어, 대표성을 위해 후보 중 무작위 추출로 바꿈)
+        correct_candidates = []
         for i in candidates:
             x = torch.from_numpy(X_te[i:i+1]).unsqueeze(1)
             f = torch.from_numpy(F_te[i:i+1])
             with torch.no_grad():
                 pred = model(x, f).argmax(1).item()
             if pred == cls_idx:
-                chosen = i
-                break
-        if chosen is None:
-            chosen = candidates[0] if len(candidates) else None
+                correct_candidates.append(i)
+        if correct_candidates:
+            chosen = int(RNG.choice(correct_candidates))
+        elif len(candidates):
+            chosen = int(RNG.choice(candidates))
+        else:
+            chosen = None
         if chosen is None:
             ax.axis("off")
             ax.set_title(f"{cls} (테스트 샘플 없음)", fontsize=10)
@@ -168,7 +142,11 @@ def main():
         ax.imshow(cam, cmap="jet", alpha=0.45)
         ax.set_title(f"{cls}  (p={prob:.2f})", fontsize=10)
         ax.axis("off")
-        report[cls] = {"test_index": int(chosen), "predicted_correctly": True, "probability": round(float(prob), 4)}
+        report[cls] = {
+            "test_index": int(chosen),
+            "predicted_correctly": bool(chosen in correct_candidates),
+            "probability": round(float(prob), 4),
+        }
 
     fig.suptitle("Grad-CAM: 클래스별 모델이 주목한 영역 (정확히 맞춘 사례)")
     fig.tight_layout()
@@ -177,7 +155,8 @@ def main():
 
     # Scratch 심층 분석: 가장 어려웠던 클래스가 실제로 선을 보고 있는지 확인
     scratch_idx = label_to_idx["Scratch"]
-    scratch_candidates = np.where(y_te == scratch_idx)[0][:4]
+    scratch_pool = np.where(y_te == scratch_idx)[0]
+    scratch_candidates = RNG.choice(scratch_pool, size=min(4, len(scratch_pool)), replace=False) if len(scratch_pool) else scratch_pool
     if len(scratch_candidates) > 0:
         fig, axes = plt.subplots(1, len(scratch_candidates), figsize=(4 * len(scratch_candidates), 4))
         if len(scratch_candidates) == 1:

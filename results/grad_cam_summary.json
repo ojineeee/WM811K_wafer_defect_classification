@@ -1,46 +1,46 @@
 {
   "none": {
-    "test_index": 4,
+    "test_index": 245,
     "predicted_correctly": true,
-    "probability": 0.7968
+    "probability": 0.9345
   },
   "Center": {
-    "test_index": 25,
+    "test_index": 1970,
     "predicted_correctly": true,
-    "probability": 0.9854
+    "probability": 0.9995
   },
   "Donut": {
-    "test_index": 21,
+    "test_index": 1528,
     "predicted_correctly": true,
-    "probability": 0.8913
+    "probability": 0.8127
   },
   "Edge-Loc": {
-    "test_index": 7,
+    "test_index": 1201,
     "predicted_correctly": true,
-    "probability": 0.7041
+    "probability": 0.6027
   },
   "Edge-Ring": {
-    "test_index": 0,
-    "predicted_correctly": true,
-    "probability": 0.9834
-  },
-  "Loc": {
-    "test_index": 1,
-    "predicted_correctly": true,
-    "probability": 0.9819
-  },
-  "Random": {
-    "test_index": 10,
+    "test_index": 1131,
     "predicted_correctly": true,
     "probability": 1.0
   },
-  "Scratch": {
-    "test_index": 15,
+  "Loc": {
+    "test_index": 2250,
     "predicted_correctly": true,
-    "probability": 0.9739
+    "probability": 0.9939
+  },
+  "Random": {
+    "test_index": 182,
+    "predicted_correctly": true,
+    "probability": 0.9995
+  },
+  "Scratch": {
+    "test_index": 1666,
+    "predicted_correctly": true,
+    "probability": 0.9875
   },
   "Near-full": {
-    "test_index": 236,
+    "test_index": 431,
     "predicted_correctly": true,
     "probability": 1.0
   }

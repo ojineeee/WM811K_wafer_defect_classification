@@ -160,6 +160,9 @@ Scratch의 저조한 성능을 분석하던 중, 클래스별 불량 밀도에�
 
 - 증강 대상: 학습 샘플이 적은 5개 클래스 (`Scratch`, `Random`, `Donut`, `Near-full`, `Loc`)
 - 변형: 90도 단위 회전 4종 × 좌우반전 2종 = 최대 8배
+- 전제: 이 증강은 "결함 유형 분류"만을 목표로 한다. 웨이퍼의 방향(회전 상태) 자체가 공정
+  진단에 의미를 갖는 과제(예: 장비 방향과 결함 위치의 상관관계 분석)에는 방향 정보를 지우는
+  이 증강을 그대로 적용하면 안 된다.
 - **누수 방지**: `train_test_split`을 먼저 실행해 test 인덱스를 고정한 뒤, train 인덱스에 대해서만 증강 적용. test에는 원본만 사용.
 - 그 외 파이프라인(리사이즈, 파생변수, `HybridCNN`, 클래스 가중치)은 4단계와 동일 — **증강 유무만 격리해서 비교**.
 
@@ -219,35 +222,45 @@ Scratch의 저조한 성능을 분석하던 중, 클래스별 불량 밀도에�
 비율이 높다는 건 라벨링 정책 혹은 실제 초기 공정 불안정성 둘 다 가능한 원인이며, 메타데이터만
 으로는 구분 불가)에 유의해야 한다.
 
+### 버그 수정 이력
+
+최초 구현은 `df.sort_values('lot_num')` 후 **행(웨이퍼) 개수의 80%** 를 split 경계로 잘랐다.
+lot 하나에 웨이퍼가 여러 장 속해 있을 수 있으므로, 이 방식은 "고유 lot 개수"가 아니라
+"웨이퍼 개수" 기준 분할이었고, split 경계에 걸친 lot 하나가 train/test 양쪽에 나뉘어 들어가는
+**lot 누수**가 있었다(실제로 이전 버전은 `train_lot_range=[1, 46088]`, `test_lot_range=[46088,
+47542]`로 lot 46088이 양쪽에 동시에 존재했다). 고유 `lot_num` 값을 먼저 정렬한 뒤, 그 목록을
+80/20으로 나누고 각 lot의 모든 웨이퍼를 통째로 한쪽에만 배정하도록 수정했다 — `train_lots`와
+`test_lots`가 서로소(disjoint)임을 assert로 확인한다.
+
 ### 재검증 방법
 
-- `df.sort_values('lot_num')` 후 행 순서 기준 앞 80% / 뒤 20%로 분할 (시간순 분할과 동일한
-  논리, 개별 lot을 쪼개지는 않음 — 한 lot 내 wafer는 모두 같은 쪽에 포함).
-- train: 4단계와 동일하게 클래스별 최대 2,000장 상한. test: 클래스별 최대 500장 상한이지만
-  **미래(뒤 20%) 구간에 자연적으로 존재하는 만큼만** 사용 — 업샘플링하지 않음.
+- 고유 lot을 정렬 후 앞 80% / 뒤 20%로 분할 (수정 후: train lot1~45283, test lot45284~47542).
+- train: 4단계와 동일하게 클래스별 최대 2,000장 상한. test: 클래스별 최대 500장 상한 —
+  500장 미만인 클래스는 그 구간에 있는 만큼만 쓰고 업샘플링하지 않지만, 500장을 넘는 클래스
+  (none 등)는 여전히 500으로 잘리므로 **이 test set의 클래스 비율이 실제 생산 현장 비율을
+  그대로 반영하는 것은 아니다** — Accuracy를 "실전 배포 정확도"로 해석하면 안 되는 이유다.
 - 모델: `HybridCNN`(CNN + 8개 파생변수), 나머지 하이퍼파라미터는 4단계와 동일.
 
-### 결과
+### 결과 (버그 수정 후)
 
 | 분할 | Macro F1 | Accuracy |
 |---|---|---|
 | 무작위 (기존, 4단계) | 0.8436 | - |
-| lot 순서 | **0.6110** | 0.6434 |
+| lot 순서 (수정 후) | **0.6031** | 0.5685 |
 
-test 클래스별 실제 표본 수(자연 분포): none 500, Edge-Loc 500, Loc 356, Scratch 239,
-Edge-Ring 229, Center 92, Random 37, Near-full 16, **Donut 5**. Donut처럼 표본이 5개뿐인
-클래스는 F1 해석에 주의가 필요하다(단 1~2건의 오분류로도 크게 흔들림).
+test 클래스별 실제 표본 수: none 500, Center 500, Edge-Loc 500, Loc 500, Edge-Ring 363,
+Scratch 347, Random 114, Near-full 38, **Donut 30**.
 
-클래스별 F1: `none` 0.784, `Center` 0.719, `Donut` 0.286, `Edge-Loc` 0.674, `Edge-Ring` 0.642,
-`Loc` 0.596, `Random` 0.581, `Scratch` 0.276, `Near-full` 0.941.
+클래스별 F1: `none` 0.561, `Center` 0.726, `Donut` 0.588, `Edge-Loc` 0.588, `Edge-Ring` 0.369,
+`Loc` 0.598, `Random` 0.771, `Scratch` 0.298, `Near-full` 0.930.
 
 ### 해석
 
 완전히 0으로 붕괴하지는 않았다 — 웨이퍼맵의 결함 패턴(모양)은 비교적 강건한 시각적 특징이기
-때문으로 보인다. 그러나 Macro F1이 0.84→0.61로 하락한 것은 무시할
-수 없는 수준이며, 특히 원래도 어려웠던 Scratch(0.37→0.28 수준)·Donut처럼 형태가 미세하거나
-표본이 적은 클래스에서 하락 폭이 크다. Near-full처럼 시각적으로 매우 뚜렷한 패턴은 분할 방식과
-무관하게 안정적으로 높은 성능을 유지한다.
+때문으로 보인다. 그러나 Macro F1이 0.84→0.60으로 하락한 것은 무시할 수 없는 수준이며, 특히
+Edge-Ring(0.96→0.37)처럼 무작위 분할에서는 쉬웠던 클래스가 이 구간에서 크게 무너지는 등, 어떤
+클래스가 취약한지 자체가 분할 방식에 따라 달라진다. Near-full처럼 시각적으로 매우 뚜렷한 패턴은
+분할 방식과 무관하게 안정적으로 높은 성능을 유지한다.
 
 ## 2x2 조합 + 부트스트랩 신뢰구간 (`src/ablation_with_ci.py`)
 
@@ -290,6 +303,76 @@ derived 단독(+0.0540)보다 근소하게 크며, both가 derived·augment 각�
 (+0.0569, +0.0504) 두 방법이 상호보완적임을 시사한다 — 단순 합(0.0540+0.0605=0.1145)에는
 살짝 못 미치지만(실제 +0.1108), 오차범위 내에서 거의 가산적인 효과로 볼 수 있다.
 
+### 한계: 이 실험은 test set을 모델 선택에도 사용한다
+
+위 실험은 네 조합을 **같은 test set**에서 비교하고, 그중 가장 높은 조합("both")을 그대로 최종
+성능으로 제시했다. 이 방식은 "test에서 가장 잘 나온 조합을 고른 뒤, 그 test 점수를 최종 성능
+이라고 보고하는" 구조라서, test set이 사실상 모델 선택에도 관여한 셈이 된다 — 여러 후보 중
+최댓값을 취하면 그 최댓값은 미래의 새 데이터에서보다 낙관적으로 나올 수 있다(선택 편향,
+winner's curse). 이 문제를 해결하기 위해 아래 `final_evaluation.py`로 train/validation/test
+3-way 분리를 도입했다. 이 섹션의 수치는 "네 조합의 상대적 우열"을 확인하는 참고 자료로만
+사용하고, **공식 최종 성능은 다음 섹션의 test 수치를 사용한다.**
+
+## Train/Val/Test 3-way 분리 최종 평가 (`src/final_evaluation.py`)
+
+### 동기
+
+바로 위 `ablation_with_ci.py`의 한계(모델 선택과 최종 평가에 같은 test set을 재사용)를 해소하기
+위해, 데이터를 train(60%)/validation(20%)/test(20%)로 분리했다. "어느 조합이 최선인가"는
+validation에서만 결정하고, 최종 성능은 그 결정에 전혀 관여하지 않은 test set에서 딱 한 번만
+측정한다.
+
+### 방법
+
+1. `train_test_split(test_size=0.4, stratify, random_state=42)`로 train(60%)과 rest(40%)를 분리한
+   뒤, rest를 다시 절반으로 나눠 validation(20%)/test(20%)를 만든다 (`train=7,657`,
+   `val=2,553`, `test=2,553`).
+2. baseline/derived/augment/both 네 조합을 train으로 학습하고 **validation**에서 macro F1과
+   부트스트랩 신뢰구간을 계산해 최선의 조합을 고른다.
+3. 최선 조합(용도 확정 후)만 **train+validation**으로 다시 학습시키고, **test**에서 딱 한 번
+   평가해 macro F1과 신뢰구간을 계산한다.
+4. 최종 모델의 `state_dict`, 스케일러, test 인덱스를 저장(`results/models/`)해 `grad_cam.py`가
+   재학습 없이 동일 모델·동일 test split을 재사용하도록 한다.
+5. `torch.set_num_threads(1)` 적용 (총 소요 51.6분: validation 선택 단계 4회 학습 + 최종 재학습
+   1회).
+
+### 결과 — 1단계: validation 기준 조합 비교 (모델 선택용)
+
+| 조합 | Macro F1 | 95% CI |
+|---|---|---|
+| baseline | 0.7990 | 0.7827 ~ 0.8141 |
+| derived | 0.8297 | 0.8141 ~ 0.8462 |
+| augment | 0.8016 | 0.7865 ~ 0.8166 |
+| **both** | **0.8705** | 0.8575 ~ 0.8845 |
+
+validation 기준으로도 "both"(파생변수+증강)가 가장 우수해, `ablation_with_ci.py`의 결론과
+일관된다. 다만 이번엔 derived(+0.0307)가 augment(+0.0026)보다 뚜렷하게 크게 나와 — 어떤 20%가
+validation으로 빠지는지에 따라 "파생변수 단독 vs 증강 단독" 중 어느 쪽이 더 큰 효과인지의
+순위 자체는 흔들릴 수 있음을 보여준다. "둘 다 쓰는 것이 최선"이라는 결론만은 두 번의 독립적인
+실행 모두에서 일관되게 유지된다.
+
+### 결과 — 2단계: 최종 test 평가 (단 한 번)
+
+validation에서 확정된 "both" 조합을 train+validation(36,880장, 증강 포함)으로 재학습해 test
+(2,553장)에서 평가했다.
+
+| 지표 | 값 |
+|---|---|
+| Macro F1 | **0.8851** (95% CI 0.8676~0.8996) |
+| Accuracy | 0.8844 |
+
+클래스별 F1: `none` 0.878, `Center` 0.953, `Donut` 0.937, `Edge-Loc` 0.835, `Edge-Ring` 0.975,
+`Loc` 0.807, `Random` 0.924, `Scratch` 0.780, `Near-full` 0.877.
+
+`ablation_with_ci.py`가 보고했던 0.8932(test 재사용)보다 소폭 낮지만 신뢰구간은 크게 겹친다
+(0.8676~0.8996 vs 0.8810~0.9035) — 이번 사례에서는 선택 편향의 영향이 크지 않았다는 뜻이지만,
+일반적으로는 이 차이가 더 클 수 있으므로 두 값을 구분해 보고하는 습관 자체가 중요하다.
+
+### 한계
+
+신뢰구간은 테스트셋 재표본추출 변동만 반영하며, 재학습 시드 변동이나 train/val/test 분할 자체가
+달라졌을 때의 변동은 포함하지 않는다.
+
 ## Grad-CAM 설명력 분석 (`src/grad_cam.py`)
 
 ### 동기
@@ -298,26 +381,41 @@ derived 단독(+0.0540)보다 근소하게 크며, both가 derived·augment 각�
 모델이 항상 올바른 근거로 판단한다는 보장은 없다. Grad-CAM으로 CNN이 예측 시 이미지의 어느
 공간 영역에 반응했는지 직접 확인했다.
 
+### 한계: 이 모델의 두 번째 경로는 Grad-CAM으로 보이지 않는다
+
+최종 모델(`HybridCNN`)은 CNN 이미지 경로의 flatten 출력에 파생변수 8개를 concat한 뒤
+분류기에 넣는 구조다. 여기서 사용하는 Grad-CAM은 CNN 경로의 마지막 conv 레이어에만 hook을
+걸기 때문에, **파생변수 경로가 최종 판단에 기여한 정도는 이 기법으로 전혀 설명되지 않는다.**
+아래 히트맵은 "이미지 정보만 놓고 봤을 때 모델이 어디에 반응했는가"로 읽어야 하며, 모델
+전체의 판단 근거를 나타내는 것은 아니다.
+
 ### 방법
 
-- 최고 성능 조합("both" = 파생변수 + 증강)을 동일 하이퍼파라미터로 재학습.
+- final_evaluation.py가 train/val/test 3-way 분리로 선택하고 test에서 한 번만 평가한 최종
+  모델(`results/models/final_model.pt`)과 그때 쓴 동일한 test split을 그대로 재사용한다 —
+  이 스크립트를 위해 별도로 재학습하지 않는다(재학습할 때마다 예시가 바뀌는 것을 방지).
 - `HybridCNN.features[7]`(마지막 Conv2d+ReLU, AdaptiveAvgPool2d 이전 — 16×16 공간 해상도가
   남아있는 마지막 지점)에 forward/backward hook을 걸어 활성값과 그레디언트를 취득.
 - 표준 Grad-CAM 공식: 채널별 그레디언트를 공간 평균해 가중치로 사용, 가중합 후 ReLU, 입력
   해상도(64×64)로 bilinear 업샘플.
-- 9개 클래스 각각에서 정확히 분류된 사례 1건씩 시각화(`21_grad_cam_by_class.png`), Scratch는
-  추가로 4건을 뽑아 상세 비교(`22_grad_cam_scratch_detail.png`).
+- 9개 클래스 각각에서 정확히 분류된 사례를 **무작위로** 1건씩 뽑아 시각화
+  (`21_grad_cam_by_class.png`, 이전 버전은 "가장 먼저 맞은 사례"를 고정으로 뽑아 우연히
+  쉬운 예시로 편향될 수 있었다), Scratch는 추가로 4건을 무작위로 뽑아 상세 비교
+  (`22_grad_cam_scratch_detail.png`).
 
 ### 결과
 
-클래스별 대표 사례: Scratch는 실제 결함 선을 따라 히트맵이 정확히 일치, Random/Near-full은
-넓은 영역에 반응, Center/Donut/Edge-Ring/Loc은 각 패턴의 정의와 부합하는 위치에 반응했다.
-`none`(정상) 사례 일부에서도 국소적으로 강한 반응이 관찰됐으나 원인은 이번 분석 범위에서
-확정하지 못했다.
+클래스별 대표 사례(무작위 추출, test index 표기): `none`#245(p=0.93), `Center`#1970(p=1.00),
+`Donut`#1528(p=0.81), `Edge-Loc`#1201(p=0.60), `Edge-Ring`#1131(p=1.00), `Loc`#2250(p=0.99),
+`Random`#182(p=1.00), `Scratch`#1666(p=0.99), `Near-full`#431(p=1.00) — 전부 정답. Scratch는
+실제 결함 선을 따라 히트맵이 뚜렷하게 일치, Random/Near-full은 넓은 영역에 반응,
+Center/Donut/Edge-Ring/Loc은 각 패턴의 정의와 부합하는 위치에 반응했다. `none`(정상) 사례
+(#245)에서도 국소적으로 강한 반응이 관찰됐으나 원인은 이번 분석 범위에서 확정하지 못했다.
 
-Scratch 4건 상세: 정답(#15)은 선을 정확히 추적했지만, 정답(#29, #37)은 각각 웨이퍼 가장자리와
-분산된 지점에 반응했고, 오답(#9, 실제 예측은 Edge-Loc)은 선이 아닌 뭉친 영역에 반응했다.
-4건 중 선을 명확히 추적한 것은 1건뿐이다.
+Scratch 4건 상세(무작위 추출): 정답(#1298)은 선을 뚜렷하게 추적했지만, 정답(#208, #2500)은
+선 전체가 아니라 일부 국소 지점(모서리, 한쪽 끝)에 집중해서 반응했고, 오답(#1921, 실제 예측은
+none)은 선이 아닌 웨이퍼 중앙 근처의 흩어진 지점에 반응했다. 4건 중 선 전체를 뚜렷하게 추적한
+것은 1건뿐이다.
 
 ### 해석
 
@@ -333,8 +431,13 @@ bash run_all.sh
 ```
 내부적으로 `data/raw/`에 zip을 다운로드 → 압축 해제 → `pip install` →
 `src/eda.py` → `src/train_cnn.py` → `src/derived_features.py` → `src/augmentation.py` →
-`src/lot_drift.py` → `src/lot_split_validation.py` → `src/ablation_with_ci.py` → `src/grad_cam.py`
-순서로 실행됩니다.
+`src/lot_drift.py` → `src/lot_split_validation.py` → `src/ablation_with_ci.py` →
+`src/final_evaluation.py` → `src/grad_cam.py` 순서로 실행됩니다.
+
+`ablation_with_ci.py`와 `final_evaluation.py`는 둘 다 4개 조합(baseline/derived/augment/both)을
+재학습합니다 — 전자는 참고용 탐색 실험(모델 선택과 최종 평가에 같은 test set 재사용, 위 한계
+참고), 후자가 train/val/test 3-way 분리로 이 문제를 해결한 공식 최종 평가입니다.
+`grad_cam.py`는 `final_evaluation.py`가 저장한 모델을 재사용하므로 재학습하지 않습니다.
 
 ## 프로젝트 구조
 
@@ -351,11 +454,13 @@ wm811k-defect-classification/
 │   ├── derived_features.py        # 파생변수 설계 + 유무 비교 실험
 │   ├── augmentation.py            # 회전/반전 증강 실험
 │   ├── lot_drift.py               # lot 순서 기반 drift 분석
-│   ├── lot_split_validation.py    # lot 순서 분할 재검증
-│   ├── ablation_with_ci.py        # 파생변수x증강 2x2 조합 + 부트스트랩 신뢰구간
-│   └── grad_cam.py                # Grad-CAM 설명력 분석
+│   ├── lot_split_validation.py    # lot 순서 분할 재검증 (고유 lot 기준)
+│   ├── ablation_with_ci.py        # 파생변수x증강 2x2 조합 + 부트스트랩 신뢰구간 (탐색용)
+│   ├── final_evaluation.py        # train/val/test 3-way 분리 최종 평가 (공식 수치)
+│   └── grad_cam.py                # Grad-CAM 설명력 분석 (final_evaluation의 모델 재사용)
 ├── results/
-│   ├── figures/                    # 01~22 시각화 결과
+│   ├── figures/                    # 01~23 시각화 결과
+│   ├── models/                     # final_evaluation.py가 저장한 최종 모델·스케일러
 │   └── *.json, *.csv               # 수치 결과
 ├── requirements.txt
 └── run_all.sh

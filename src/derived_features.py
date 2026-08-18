@@ -13,6 +13,7 @@ from plot_style import plt
 import numpy as np
 import pandas as pd
 import torch
+torch.set_num_threads(1)
 import torch.nn as nn
 from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import train_test_split

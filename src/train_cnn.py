@@ -11,6 +11,7 @@ from pathlib import Path
 from plot_style import plt
 import numpy as np
 import torch
+torch.set_num_threads(1)
 import torch.nn as nn
 from PIL import Image
 from sklearn.metrics import classification_report, confusion_matrix, f1_score
