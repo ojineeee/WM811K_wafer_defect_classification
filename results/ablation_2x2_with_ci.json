@@ -1,0 +1,64 @@
+{
+  "point_macro_f1": {
+    "baseline": 0.7826,
+    "derived": 0.8368,
+    "augment": 0.8429,
+    "both": 0.8935
+  },
+  "bootstrap_ci": {
+    "baseline": {
+      "mean": 0.7824,
+      "ci_lower": 0.7648,
+      "ci_upper": 0.7986
+    },
+    "derived": {
+      "mean": 0.8363,
+      "ci_lower": 0.8206,
+      "ci_upper": 0.8504
+    },
+    "augment": {
+      "mean": 0.8428,
+      "ci_lower": 0.8268,
+      "ci_upper": 0.8581
+    },
+    "both": {
+      "mean": 0.8932,
+      "ci_lower": 0.881,
+      "ci_upper": 0.9035
+    }
+  },
+  "delta_ci": {
+    "derived_minus_baseline": {
+      "mean_delta": 0.054,
+      "ci_lower": 0.0351,
+      "ci_upper": 0.0731,
+      "significant": true
+    },
+    "augment_minus_baseline": {
+      "mean_delta": 0.0605,
+      "ci_lower": 0.0423,
+      "ci_upper": 0.0775,
+      "significant": true
+    },
+    "both_minus_baseline": {
+      "mean_delta": 0.1108,
+      "ci_lower": 0.0938,
+      "ci_upper": 0.1283,
+      "significant": true
+    },
+    "both_minus_derived": {
+      "mean_delta": 0.0569,
+      "ci_lower": 0.0438,
+      "ci_upper": 0.0714,
+      "significant": true
+    },
+    "both_minus_augment": {
+      "mean_delta": 0.0504,
+      "ci_lower": 0.0374,
+      "ci_upper": 0.0644,
+      "significant": true
+    }
+  },
+  "n_test": 2553,
+  "elapsed_sec": 2736.7
+}
