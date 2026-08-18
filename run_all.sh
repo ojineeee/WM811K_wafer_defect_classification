@@ -23,5 +23,6 @@ python3 augmentation.py
 python3 lot_drift.py
 python3 lot_split_validation.py
 python3 ablation_with_ci.py
+python3 grad_cam.py
 
 echo "Done. See ../results/"

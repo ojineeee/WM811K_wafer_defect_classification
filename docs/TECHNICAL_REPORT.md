@@ -291,6 +291,42 @@ derived 단독(+0.0540)보다 근소하게 크며, both가 derived·augment 각�
 (+0.0569, +0.0504) 두 방법이 상호보완적임을 시사한다 — 단순 합(0.0540+0.0605=0.1145)에는
 살짝 못 미치지만(실제 +0.1108), 오차범위 내에서 거의 가산적인 효과로 볼 수 있다.
 
+## Grad-CAM 설명력 분석 (`src/grad_cam.py`)
+
+### 동기
+
+SECOM의 SHAP과 대칭되는 분석. 지금까지는 F1 점수로만 모델을 평가했는데, 점수가 높다고
+모델이 항상 올바른 근거로 판단한다는 보장은 없다. Grad-CAM으로 CNN이 예측 시 이미지의 어느
+공간 영역에 반응했는지 직접 확인했다.
+
+### 방법
+
+- 최고 성능 조합("both" = 파생변수 + 증강)을 동일 하이퍼파라미터로 재학습.
+- `HybridCNN.features[7]`(마지막 Conv2d+ReLU, AdaptiveAvgPool2d 이전 — 16×16 공간 해상도가
+  남아있는 마지막 지점)에 forward/backward hook을 걸어 활성값과 그레디언트를 취득.
+- 표준 Grad-CAM 공식: 채널별 그레디언트를 공간 평균해 가중치로 사용, 가중합 후 ReLU, 입력
+  해상도(64×64)로 bilinear 업샘플.
+- 9개 클래스 각각에서 정확히 분류된 사례 1건씩 시각화(`21_grad_cam_by_class.png`), Scratch는
+  추가로 4건을 뽑아 상세 비교(`22_grad_cam_scratch_detail.png`).
+
+### 결과
+
+클래스별 대표 사례: Scratch는 실제 결함 선을 따라 히트맵이 정확히 일치, Random/Near-full은
+넓은 영역에 반응, Center/Donut/Edge-Ring/Loc은 각 패턴의 정의와 부합하는 위치에 반응했다.
+`none`(정상) 사례 일부에서도 국소적으로 강한 반응이 관찰됐으나 원인은 이번 분석 범위에서
+확정하지 못했다.
+
+Scratch 4건 상세: 정답(#15)은 선을 정확히 추적했지만, 정답(#29, #37)은 각각 웨이퍼 가장자리와
+분산된 지점에 반응했고, 오답(#9, 실제 예측은 Edge-Loc)은 선이 아닌 뭉친 영역에 반응했다.
+4건 중 선을 명확히 추적한 것은 1건뿐이다.
+
+### 해석
+
+Scratch F1이 지속적으로 낮은 원인이 단순히 학습 표본 부족만이 아니라, **정답을 맞힌 경우에도
+모델이 매번 일관된 근거(실제 결함 선)로 판단하지 않고 있다**는 것을 시각적으로 확인했다. 이는
+정확도/F1 지표만으로는 드러나지 않는 신뢰성 문제이며, 정량 지표와 설명력 분석을 함께 봐야
+모델의 실제 견고성을 판단할 수 있다는 근거가 된다.
+
 ## 재현 방법
 
 ```bash
@@ -298,7 +334,8 @@ bash run_all.sh
 ```
 내부적으로 `data/raw/`에 zip을 다운로드 → 압축 해제 → `pip install` →
 `src/eda.py` → `src/train_cnn.py` → `src/derived_features.py` → `src/augmentation.py` →
-`src/lot_drift.py` → `src/lot_split_validation.py` → `src/ablation_with_ci.py` 순서로 실행됩니다.
+`src/lot_drift.py` → `src/lot_split_validation.py` → `src/ablation_with_ci.py` → `src/grad_cam.py`
+순서로 실행됩니다.
 
 ## 프로젝트 구조
 
@@ -316,9 +353,10 @@ wm811k-defect-classification/
 │   ├── augmentation.py            # 회전/반전 증강 실험
 │   ├── lot_drift.py               # lot 순서 기반 drift 분석
 │   ├── lot_split_validation.py    # lot 순서 분할 재검증
-│   └── ablation_with_ci.py        # 파생변수x증강 2x2 조합 + 부트스트랩 신뢰구간
+│   ├── ablation_with_ci.py        # 파생변수x증강 2x2 조합 + 부트스트랩 신뢰구간
+│   └── grad_cam.py                # Grad-CAM 설명력 분석
 ├── results/
-│   ├── figures/                    # 01~19 시각화 결과
+│   ├── figures/                    # 01~22 시각화 결과
 │   └── *.json, *.csv               # 수치 결과
 ├── requirements.txt
 └── run_all.sh
