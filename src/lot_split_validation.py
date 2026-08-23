@@ -6,10 +6,10 @@ lot_drift.py에서 lot 순서 초반(전체의 20%) 구간의 불량 비율이 �
 분할이 실제 성능을 과대평가했던 것과 같은 위험이 있는지, lot 순서 그대로
 앞 80% 학습 / 뒤 20% 평가로 다시 검증한다.
 
-train 쪽은 기존과 동일하게 클래스별 최대 2,000장으로 균형을 맞추지만,
-test 쪽(미래 구간)은 그 시점에 "실제로 존재하는 만큼"만 쓴다 — 균형을
-맞추지 않는 것 자체가 실전을 더 정직하게 반영한다(희귀 클래스가 그
-구간에 거의 없다면 그 사실 자체가 결과의 일부).
+train 쪽은 기존과 동일하게 클래스별 최대 2,000장으로 제한한다. test도
+계산량 제어를 위해 클래스별 최대 500장을 고정 시드로 무작위 추출하므로,
+실제 생산 분포를 그대로 보존한 평가는 아니다. 따라서 Accuracy보다
+클래스별 성능을 동일 비중으로 보는 Macro F1을 중심으로 해석한다.
 """
 import json
 import time
@@ -80,7 +80,7 @@ def main():
     test_sub = cap_per_class(pool_test, TEST_CAP_PER_CLASS)
 
     print("\ntrain 클래스 분포:\n", train_sub["failureType"].value_counts())
-    print("\ntest 클래스 분포 (미래 구간에 자연적으로 존재하는 만큼):\n", test_sub["failureType"].value_counts())
+    print("\ntest 클래스 분포 (클래스당 최대 500장 subset):\n", test_sub["failureType"].value_counts())
 
     X_tr_img, F_tr, y_tr = build_xy(train_sub)
     X_te_img, F_te, y_te = build_xy(test_sub)
