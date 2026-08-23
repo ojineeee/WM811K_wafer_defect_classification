@@ -254,11 +254,7 @@
   <header class="hero">
     <div class="eyebrow">개인 프로젝트 · 반도체 웨이퍼맵 결함 분류</div>
     <h1>WM-811K 웨이퍼맵<br>결함 패턴 분류</h1>
-    <p class="lede">
-      웨이퍼맵 이미지 17만 장으로 정상 1종·결함 8종을 자동 분류하는 CNN을 만들고,
-      "무작위로 나눠서 평가한 성능"과 "실제로 본 적 없는 새 lot에서의 성능"을
-      구분해서 검증한 프로젝트입니다.
-    </p>
+    <p class="lede">웨이퍼맵 이미지 17만 장으로 정상 1종과 결함 8종을 구분하는 CNN을 만들었습니다. 무작위로 섞어서 평가한 성능을 그대로 믿기보다, 실제로 본 적 없는 새 lot에서도 통하는지 따로 확인해봤습니다.</p>
     <div class="badges">
       <span class="badge">Python</span>
       <span class="badge">PyTorch (CPU)</span>
@@ -288,14 +284,7 @@
       <div class="section-eyebrow">Problem</div>
       <h2>이 프로젝트가 푸는 문제</h2>
     </div>
-    <p>
-      웨이퍼 한 장에는 수백~수천 개의 칩이 배열되고, 검사 후 불량 칩의 위치가
-      웨이퍼 전체를 하나의 지도(맵)처럼 보여줍니다. 불량은 무작위로 흩어지기보다
-      <b>특정 공간 패턴</b>을 형성하는 경우가 많고, 이 패턴은 공정·장비 이상의
-      원인을 좁히는 단서가 됩니다 — 가장자리 집중은 정렬 문제와, 선형 패턴은
-      이송 중 손상과 연관될 수 있습니다. 이 패턴을 사람이 일일이 판별하는 대신
-      <b>이미지를 보고 자동으로 분류하는 모델</b>을 만드는 것이 목표입니다.
-    </p>
+    <p>웨이퍼 한 장에는 칩(다이)이 수백~수천 개 배열돼 있고, 검사가 끝나면 정상/불량 결과가 웨이퍼 전체를 하나의 지도처럼 보여줍니다. 불량은 무작위로 흩어지기보다 <b>특정 공간 패턴</b>을 이루는 경우가 많은데, 이 패턴이 원인을 좁히는 단서가 됩니다. 가장자리에 몰리면 정렬 문제를, 선 모양이면 이송 중 손상을 의심해볼 수 있는 식입니다. 사람이 하나씩 눈으로 판별하는 대신, <b>이미지를 보고 자동으로 분류하는 모델</b>을 만들어보고 싶었습니다.</p>
   </section>
 
   <section id="flow">
@@ -312,13 +301,9 @@
         <div class="step-card">
           <h3>EDA — 데이터의 함정부터 확인</h3>
           <p class="step-goal">라벨 비율 · 클래스 불균형 · 웨이퍼 크기 편차 파악</p>
-          <p>
-            전체 81만 장 중 라벨이 붙은 건 17만 장(21.3%)뿐입니다. 그중에서도 정상(none)이
-            147,431장(85%)인 반면 가장 희귀한 Near-full은 149장(0.09%) — 클래스 간 비율 차이가
-            <b>약 1,000배</b>에 달합니다. 웨이퍼맵 크기도 346가지로 제각각이라 통일이 필요했습니다.
-          </p>
+          <p>전체 81만 장 중 라벨이 붙은 건 17만 장, 21.3%뿐이었습니다. 그마저도 정상(none)이 147,431장으로 85%를 차지하고, 가장 희귀한 Near-full은 149장(0.09%)이라 둘 사이 비율 차이가 <b>거의 1,000배</b>였습니다. 웨이퍼맵 크기도 346가지나 돼서 모델에 넣기 전에 이것부터 정리해야 했습니다.</p>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/01_class_distribution.png" alt="클래스 분포 (로그 스케일)">
-          <p class="cap">클래스 분포 — none이 압도적으로 많고 나머지 8종은 로그 스케일로 봐야 겨우 비교됩니다.</p>
+          <p class="cap">클래스 분포 — none이 워낙 많아서 나머지 8종은 로그 스케일로 봐야 겨우 비교가 됩니다.</p>
         </div>
       </div>
 
@@ -327,11 +312,7 @@
         <div class="step-card">
           <h3>전처리 — 크기를 어떻게 통일했는가</h3>
           <p class="step-goal">범주형 값을 보존하며 이미지 크기 통일</p>
-          <p>
-            웨이퍼맵은 "0=칩 없음, 1=정상, 2=불량"이라는 범주형 값이라, 사진처럼 부드럽게
-            리사이즈하면 값이 뭉개집니다. <b>최근접 이웃(nearest-neighbor)</b> 방식으로 64×64로
-            통일해 범주형 값을 그대로 보존했고, 클래스당 최대 2,000장 상한을 둬 학습셋(12,763장)을 구성했습니다.
-          </p>
+          <p>0은 칩 없음, 1은 정상, 2는 불량을 뜻하는 범주형 값이라, 사진처럼 부드럽게 리사이즈하면 값이 뭉개집니다. 그래서 <b>최근접 이웃(nearest-neighbor)</b> 방식으로 64×64에 맞췄고, 클래스당 최대 2,000장 상한을 둬서 학습셋 12,763장을 구성했습니다.</p>
         </div>
       </div>
 
@@ -340,12 +321,9 @@
         <div class="step-card">
           <h3>기본 CNN — 첫 결과와 약점 발견</h3>
           <p class="step-goal">9개 클래스(정상 + 결함 8종) 분류</p>
-          <p>
-            작은 CNN(합성곱 3층)을 CPU에서 학습시킨 결과 Macro F1 <b>0.80</b>, Accuracy 80.1%.
-            Edge-Ring(0.95)·Center(0.93)는 잘 맞혔지만, <b>Scratch는 F1 0.37로 유독 낮았습니다.</b>
-          </p>
+          <p>작은 CNN(합성곱 3층)을 CPU로 15 epoch 돌렸더니 Macro F1 <b>0.80</b>, Accuracy 80.1%가 나왔습니다. Edge-Ring(0.95)이나 Center(0.93)처럼 모양이 뚜렷한 건 잘 맞혔는데, <b>Scratch만 F1 0.37로 유독 안 됐습니다.</b></p>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/05_confusion_matrix.png" alt="혼동행렬">
-          <p class="cap">혼동행렬 — Scratch가 none·Loc과 자주 혼동됩니다.</p>
+          <p class="cap">혼동행렬 — Scratch가 none이나 Loc으로 자주 잘못 분류됩니다.</p>
         </div>
       </div>
 
@@ -354,11 +332,7 @@
         <div class="step-card">
           <h3>도메인 파생특징 — 왜 Scratch만 어려운가</h3>
           <p class="step-goal">원본 맵의 공간정보로 CNN 보완</p>
-          <p>
-            원인을 파고드니 <b>Scratch의 불량 칩 비율(10.1%)이 정상 웨이퍼(10.6%)보다 낮았습니다</b> —
-            가늘고 긴 선이라 불량 칩 수 자체가 적고, 64×64 축소 과정에서 그 선이 뭉개진 겁니다.
-            원본 해상도에서 계산한 8개 파생특징(불량 밀도, 중심 거리, 행·열 집중도 등)을 CNN에 더했습니다.
-          </p>
+          <p>왜 그런가 들여다보니 <b>Scratch의 불량 칩 비율(10.1%)이 오히려 정상 웨이퍼(10.6%)보다 낮았습니다.</b> 선이 가늘고 길다 보니 불량 칩 수 자체가 적고, 64×64로 줄이는 과정에서 그 선마저 뭉개진 거였습니다. 그래서 원본 해상도에서 직접 계산한 파생특징 8개(불량 밀도, 중심으로부터 거리, 행·열 집중도 등)를 CNN에 같이 넣어봤습니다.</p>
           <table>
             <tr><th>지표</th><th>CNN만</th><th>CNN + 파생특징</th></tr>
             <tr><td>Macro F1</td><td>0.790</td><td><b>0.844</b></td></tr>
@@ -373,16 +347,9 @@
         <div class="step-card">
           <h3>데이터 증강 — Scratch를 한 번 더 개선</h3>
           <p class="step-goal">회전 · 반전으로 소수 클래스 표본 다양성 보완</p>
-          <p>
-            회전해도 뒤집어도 결함 종류는 유지된다는 성질을 이용해, 표본이 적은 5개 클래스에
-            최대 8배 증강을 적용했습니다 (train 분할 이후에만 적용해 데이터 누수 방지).
-            Scratch F1이 <b>0.61 → 0.75</b>로 다시 한번 크게 올랐습니다.
-          </p>
+          <p>회전시키거나 뒤집어도 결함 종류는 그대로 유지된다는 점을 이용해서, 표본이 적은 클래스 5개에 최대 8배 증강을 적용했습니다. train 쪽에만, 그것도 분할 이후에만 적용해서 누수는 막았습니다. Scratch F1이 <b>0.61에서 0.75</b>로 한 번 더 올랐습니다.</p>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/08_augmentation_comparison.png" alt="증강 유무에 따른 클래스별 F1 비교">
-          <div class="callout">
-            참고: 이 증강은 "결함 유형 분류"만을 목표로 합니다. 웨이퍼 방향이 진단에 의미를 갖는
-            다른 목적(장비 방향과 결함의 상관관계 분석 등)에는 적절하지 않을 수 있습니다.
-          </div>
+          <div class="callout">이 증강은 어디까지나 "결함 유형을 구분"하는 게 목표일 때 유효합니다. 웨이퍼 방향 자체가 의미 있는 분석(장비 방향과 결함의 상관관계 같은)에는 맞지 않을 수 있습니다.</div>
         </div>
       </div>
 
@@ -391,17 +358,9 @@
         <div class="step-card">
           <h3>lot 분포 이동 위험 점검</h3>
           <p class="step-goal">lot 식별자 기준 독립 분할로 재평가</p>
-          <p>
-            지금까지는 전부 무작위 분할로 평가했는데, 제조 데이터는 시간에 따라 조건이 바뀌는 게
-            흔합니다. lot 번호(<code>lot1, lot2, ...</code>)를 생산 순서의 대용값으로 써서 확인해보니,
-            <b>초반 20% lot 구간의 불량률이 약 51%</b>, 나머지 구간은 3~10%로 극단적으로 달랐습니다.
-          </p>
+          <p>지금까지는 다 무작위로 섞어서 평가했는데, 제조 데이터는 시간이 지나면서 공정 조건이 바뀌는 일이 흔합니다. lot 번호(<code>lot1, lot2, ...</code>)를 생산 순서 대신 써서 확인해보니, <b>초반 20% lot 구간의 불량률이 51%</b>였고 나머지는 3~10%대였습니다. 거의 다른 데이터처럼 보일 정도였습니다.</p>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/16_lot_drift.png" alt="lot 순서별 불량 비율">
-          <p>
-            같은 lot이 train/test에 걸치지 않도록 고유 lot 기준으로 앞 80%/뒤 20%를 나눠 재평가하니,
-            Macro F1이 <b>0.844 → 0.603</b>으로 뚝 떨어졌습니다 — 무작위 분할이 성능을 낙관적으로
-            보여줄 수 있다는 첫 증거였습니다.
-          </p>
+          <p>같은 lot이 train과 test에 걸치지 않게 고유 lot 기준으로 앞 80%/뒤 20%를 나눠서 다시 평가했더니, Macro F1이 <b>0.844에서 0.603</b>으로 뚝 떨어졌습니다. 무작위 분할만 믿고 있었으면 몰랐을 결과입니다.</p>
         </div>
       </div>
 
@@ -410,18 +369,10 @@
         <div class="step-card">
           <h3>모델 선택과 최종 평가 분리</h3>
           <p class="step-goal">Train / Val / Test 3-way 분리 + 신뢰구간</p>
-          <p>
-            기존엔 4개 조합(파생특징×증강)을 같은 test set에서 비교하고 최고점을 그대로
-            "최종 성능"이라 보고했는데, 이건 test set을 모델 선택에도 쓴 셈이라 선택 편향
-            위험이 있습니다. train(60%)/validation(20%)/test(20%)로 나눠 <b>validation에서만
-            조합을 고르고, test는 딱 한 번만</b> 평가하도록 재구성했습니다.
-          </p>
+          <p>원래는 네 조합(파생특징×증강)을 같은 test set에서 비교하고 제일 높은 걸 그대로 최종 성능이라 보고했는데, 생각해보니 이건 test set을 모델 고르는 데도 쓴 셈이라 점수가 부풀려질 수 있는 구조였습니다. 그래서 train(60%)/validation(20%)/test(20%)로 나눠서, <b>validation에서만 조합을 고르고 test는 딱 한 번만</b> 평가하도록 다시 짰습니다.</p>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/23_train_val_test_evaluation.png" alt="Val 기준 조합 비교 vs 최종 test 평가">
-          <p>결과: <b>Macro F1 0.885</b> (95% CI 0.868~0.900) — 파생특징+증강 조합, 선택 편향을 제거한 수치.</p>
-          <div class="callout warn">
-            다만 이 분할은 <b>웨이퍼 단위 무작위</b> 분할이라, 같은 lot이 train/val/test에 섞일 수
-            있습니다. 즉 0.885는 "같은 분포에서의 성능"이지 "미관측 lot 일반화 성능"이 아닙니다.
-          </div>
+          <p>결과는 <b>Macro F1 0.885</b>(95% CI 0.868~0.900) — 파생특징+증강 조합이고, 선택 편향을 걷어낸 수치입니다.</p>
+          <div class="callout warn">다만 이 분할도 웨이퍼를 무작위로 섞은 거라, 같은 lot이 train/val/test에 다 섞여 들어갈 수 있습니다. 그러니까 0.885는 "같은 분포 안에서의 성능"이지, 미관측 lot에서의 성능은 아직 모릅니다.</div>
         </div>
       </div>
 
@@ -433,11 +384,7 @@
             <span class="step-tag">핵심 결과</span>
           </div>
           <p class="step-goal">진짜 "미관측 lot holdout" 성능 측정</p>
-          <p>
-            6단계(lot 기준 분할)와 7단계(모델 선택/평가 분리)의 장점을 합쳤습니다. 고유 lot을
-            60%/20%/20%로 나누고, validation(미관측 lot)에서 조합을 고른 뒤 test(더 새로운 lot)에서
-            딱 한 번 평가했습니다.
-          </p>
+          <p>6단계(lot 기준 분할)와 7단계(모델 선택/평가 분리)를 합쳤습니다. 고유 lot을 60/20/20으로 나누고, validation(미관측 lot)에서 조합을 고른 다음 test lot에서 딱 한 번만 평가했습니다.</p>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/24_lot_train_val_test_evaluation.png" alt="lot 기준 Val 조합 선택 vs 최종 lot-test 평가">
           <table>
             <tr><th>평가 방식</th><th>Macro F1</th><th>의미</th></tr>
@@ -445,11 +392,7 @@
             <tr><td>lot 2-way (6단계)</td><td>0.603</td><td>모델 고정 후 거친 진단</td></tr>
             <tr><td><b>lot 3-way (8단계)</b></td><td><b>0.721</b></td><td><b>선택 편향 없이 측정한 공식 대표 수치</b></td></tr>
           </table>
-          <p>
-            신뢰구간(0.695~0.746)은 같은 lot 안 웨이퍼가 서로 독립이 아닐 수 있다는 점을 반영해
-            <b>lot 단위 cluster bootstrap</b>으로 계산했습니다. 실전 배포 성능을 제시한다면 0.885가
-            아니라 <b>0.721</b>을 "신규 생산 배치에서 기대할 수 있는 성능"으로 보고하는 것이 정직합니다.
-          </p>
+          <p>신뢰구간(0.695~0.746)은 같은 lot 안 웨이퍼끼리는 서로 독립이 아닐 수 있다는 걸 감안해서 <b>lot 단위 cluster bootstrap</b>으로 계산했습니다. 실제로 배포한다면 0.885가 아니라 <b>0.721</b>을 "이 모델이 새 생산 배치에서 낼 수 있는 성능"으로 말하는 게 맞다고 생각합니다.</p>
         </div>
       </div>
 
@@ -458,16 +401,9 @@
         <div class="step-card">
           <h3>모델의 공간적 반응 확인 (Grad-CAM)</h3>
           <p class="step-goal">CNN이 실제로 어디를 보고 판단했는가</p>
-          <p>
-            점수가 좋다고 모델이 항상 올바른 이유로 맞힌다는 보장은 없습니다. Grad-CAM으로
-            확인한 결과, Random·Near-full·Loc·Edge류는 각 패턴 정의와 대체로 일치하는 위치에
-            반응했지만, <b>Scratch는 선 전체가 아니라 국소적인 지점에만 반응</b>하는 경향이 관찰됐습니다.
-          </p>
+          <p>점수가 좋다고 모델이 항상 맞는 이유로 맞히는 건 아니라서, Grad-CAM으로 실제로 어디를 보고 판단했는지 확인해봤습니다. Random·Near-full·Loc·Edge류는 대체로 패턴 정의와 맞는 위치에 반응했는데, <b>Scratch는 선 전체가 아니라 한 지점에만 반응</b>하는 경우가 많았습니다.</p>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/21_grad_cam_by_class.png" alt="클래스별 Grad-CAM">
-          <div class="callout">
-            한계: 최종 모델은 CNN(이미지)과 파생특징이 결합된 하이브리드 구조입니다. Grad-CAM은
-            CNN 경로만 설명하므로, 파생특징이 판단에 기여한 부분은 이 히트맵에 나타나지 않습니다.
-          </div>
+          <div class="callout">다만 최종 모델은 CNN과 파생특징을 같이 쓰는 구조라, Grad-CAM은 CNN 쪽 경로만 보여줍니다. 파생특징이 얼마나 기여했는지는 이 히트맵으로는 알 수 없습니다.</div>
         </div>
       </div>
 
@@ -522,11 +458,7 @@
       <li>lot 번호는 실제 타임스탬프가 아니므로, 0.721을 미래 시점에 대한 완전한 시간 외삽 성능으로 해석하지 않음</li>
       <li>lot 구간별 분포 차이가 실제 공정 변화 때문인지 라벨링 정책 때문인지는 메타데이터만으로 확정 불가</li>
     </ul>
-    <p style="margin-top:20px; color: var(--text-soft);">
-      더 자세한 수치와 코드 구조는
-      <a href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/README.md">전체 README</a>와
-      <a href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/docs/TECHNICAL_REPORT.md">기술 상세 리포트</a>에서 확인하실 수 있습니다.
-    </p>
+    <p style="margin-top:20px; color: var(--text-soft);">더 자세한 수치와 코드 구조는 <a href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/README.md">전체 README</a>와 <a href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/docs/TECHNICAL_REPORT.md">기술 상세 리포트</a>에서 확인하실 수 있습니다.</p>
   </section>
 
   <footer>
