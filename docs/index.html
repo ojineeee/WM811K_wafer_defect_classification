@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WM-811K 웨이퍼맵 결함 패턴 분류</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f7f9;
+    --text: #1a1d24;
+    --text-soft: #5b6270;
+    --border: #e4e7ec;
+    --accent: #2f5fd6;
+    --accent-soft: #eaf0ff;
+    --good: #1f8a5f;
+    --warn: #b3541e;
+    --code-bg: #f0f1f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161c;
+      --bg-soft: #1b1e26;
+      --text: #e7e9ee;
+      --text-soft: #a2a8b5;
+      --border: #2b2f3a;
+      --accent: #7fa2ff;
+      --accent-soft: #1e2740;
+      --good: #4fd39a;
+      --warn: #e2984f;
+      --code-bg: #1e212a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161c;
+    --bg-soft: #1b1e26;
+    --text: #e7e9ee;
+    --text-soft: #a2a8b5;
+    --border: #2b2f3a;
+    --accent: #7fa2ff;
+    --accent-soft: #1e2740;
+    --good: #4fd39a;
+    --warn: #e2984f;
+    --code-bg: #1e212a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic",
+      "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  img { max-width: 100%; display: block; border-radius: 8px; border: 1px solid var(--border); }
+
+  header.hero {
+    padding: 64px 0 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 30px;
+    margin: 0 0 14px;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    font-size: 17px;
+    color: var(--text-soft);
+    max-width: 62ch;
+    margin: 0 0 24px;
+  }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .badge {
+    font-size: 13px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+  }
+  .metric-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+  .metric-card {
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    min-width: 200px;
+    flex: 1;
+  }
+  .metric-card .num { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .metric-card .label { font-size: 13px; color: var(--text-soft); margin-top: 2px; }
+
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn {
+    display: inline-block;
+    padding: 9px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h2 { font-size: 22px; margin: 0 0 6px; }
+  h2 .step-no {
+    display: inline-block;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    text-align: center;
+    line-height: 30px;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+  .step-goal { color: var(--text-soft); font-size: 14px; margin: 0 0 18px 40px; }
+  .step-body { margin-left: 40px; }
+  .step-body p { margin: 0 0 14px; }
+  .step-body img { margin: 16px 0; }
+  .cap { font-size: 13px; color: var(--text-soft); margin: -8px 0 16px; }
+  .callout {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 14.5px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-soft); font-weight: 600; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13.5px;
+  }
+
+  ul.compact { margin: 0; padding-left: 20px; }
+  ul.compact li { margin-bottom: 8px; }
+
+  footer { padding: 36px 0 64px; color: var(--text-soft); font-size: 14px; }
+  footer a { color: var(--accent); }
+
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 16px 0; }
+  @media (max-width: 640px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .step-body, .step-goal { margin-left: 0; }
+    h2 .step-no { display: block; margin-bottom: 8px; }
+  }
+  .summary-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    background: var(--bg-soft);
+  }
+  .summary-card .num { font-size: 22px; font-weight: 700; }
+  .summary-card .num.hi { color: var(--good); }
+  .summary-card .num.mid { color: var(--warn); }
+  .summary-card .label { font-size: 13px; color: var(--text-soft); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">개인 프로젝트 · 반도체 웨이퍼맵 결함 분류</div>
+    <h1>WM-811K 웨이퍼맵 결함 패턴 분류</h1>
+    <p class="lede">
+      웨이퍼맵 이미지 17만 장으로 정상 1종·결함 8종을 자동 분류하는 CNN을 만들고,
+      "무작위로 나눠서 평가한 성능"과 "실제로 본 적 없는 새 lot에서의 성능"을
+      구분해서 검증한 프로젝트입니다.
+    </p>
+    <div class="badges">
+      <span class="badge">Python</span>
+      <span class="badge">PyTorch (CPU)</span>
+      <span class="badge">scikit-learn</span>
+      <span class="badge">Grad-CAM</span>
+      <span class="badge">Bootstrap CI</span>
+    </div>
+    <div class="metric-row">
+      <div class="metric-card">
+        <div class="num">0.885</div>
+        <div class="label">동일 분포(IID) 무작위 holdout Macro F1</div>
+      </div>
+      <div class="metric-card">
+        <div class="num">0.721</div>
+        <div class="label">미관측 lot holdout Macro F1 (공식 대표 수치)</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <a class="btn primary" href="https://github.com/ojineeee/WM811K_wafer_defect_classification">GitHub 저장소</a>
+      <a class="btn" href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/README.md">전체 README</a>
+      <a class="btn" href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/docs/TECHNICAL_REPORT.md">기술 상세 리포트</a>
+    </div>
+  </header>
+
+  <section>
+    <h2 style="margin-left:0">이 프로젝트가 푸는 문제</h2>
+    <p>
+      웨이퍼 한 장에는 수백~수천 개의 칩이 배열되고, 검사 후 불량 칩의 위치가
+      웨이퍼 전체를 하나의 지도(맵)처럼 보여줍니다. 불량은 무작위로 흩어지기보다
+      <b>특정 공간 패턴</b>을 형성하는 경우가 많고, 이 패턴은 공정·장비 이상의
+      원인을 좁히는 단서가 됩니다 — 가장자리 집중은 정렬 문제와, 선형 패턴은
+      이송 중 손상과 연관될 수 있습니다. 이 패턴을 사람이 일일이 판별하는 대신
+      <b>이미지를 보고 자동으로 분류하는 모델</b>을 만드는 것이 목표입니다.
+    </p>
+  </section>
+
+  <section>
+    <h2 style="margin-left:0">진행 흐름</h2>
+    <p class="cap" style="margin-top:0">
+      9단계로 진행했고, 뒤로 갈수록 "이 성능이 정말 믿을 만한가"를 점점 더 엄격하게 되묻는 구조입니다.
+    </p>
+
+    <h2><span class="step-no">1</span>EDA — 데이터의 함정부터 확인</h2>
+    <p class="step-goal">라벨 비율, 클래스 불균형, 웨이퍼 크기 편차 파악</p>
+    <div class="step-body">
+      <p>
+        전체 81만 장 중 라벨이 붙은 건 17만 장(21.3%)뿐입니다. 그중에서도 정상(none)이
+        147,431장(85%)인 반면 가장 희귀한 Near-full은 149장(0.09%) — 클래스 간 비율 차이가
+        <b>약 1,000배</b>에 달합니다. 웨이퍼맵 크기도 346가지로 제각각이라 통일이 필요했습니다.
+      </p>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/01_class_distribution.png" alt="클래스 분포 (로그 스케일)">
+      <p class="cap">클래스 분포 — none이 압도적으로 많고 나머지 8종은 로그 스케일로 봐야 겨우 비교됩니다.</p>
+    </div>
+
+    <h2><span class="step-no">2</span>전처리 — 크기를 어떻게 통일했는가</h2>
+    <p class="step-goal">범주형 값을 보존하며 이미지 크기 통일</p>
+    <div class="step-body">
+      <p>
+        웨이퍼맵은 "0=칩 없음, 1=정상, 2=불량"이라는 범주형 값이라, 사진처럼 부드럽게
+        리사이즈하면 값이 뭉개집니다. <b>최근접 이웃(nearest-neighbor)</b> 방식으로 64×64로
+        통일해 범주형 값을 그대로 보존했고, 클래스당 최대 2,000장 상한을 둬 학습셋(12,763장)을 구성했습니다.
+      </p>
+    </div>
+
+    <h2><span class="step-no">3</span>기본 CNN — 첫 결과와 약점 발견</h2>
+    <p class="step-goal">9개 클래스(정상 + 결함 8종) 분류</p>
+    <div class="step-body">
+      <p>
+        작은 CNN(합성곱 3층)을 CPU에서 학습시킨 결과 Macro F1 <b>0.80</b>, Accuracy 80.1%.
+        Edge-Ring(0.95)·Center(0.93)는 잘 맞혔지만, <b>Scratch는 F1 0.37로 유독 낮았습니다.</b>
+      </p>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/05_confusion_matrix.png" alt="혼동행렬">
+      <p class="cap">혼동행렬 — Scratch가 none·Loc과 자주 혼동됩니다.</p>
+    </div>
+
+    <h2><span class="step-no">4</span>도메인 파생특징 — 왜 Scratch만 어려운가</h2>
+    <p class="step-goal">원본 맵의 공간정보로 CNN 보완</p>
+    <div class="step-body">
+      <p>
+        원인을 파고드니 <b>Scratch의 불량 칩 비율(10.1%)이 정상 웨이퍼(10.6%)보다 낮았습니다</b> —
+        가늘고 긴 선이라 불량 칩 수 자체가 적고, 64×64 축소 과정에서 그 선이 뭉개진 겁니다.
+        원본 해상도에서 계산한 8개 파생특징(불량 밀도, 중심 거리, 행·열 집중도 등)을 CNN에 더했습니다.
+      </p>
+      <table>
+        <tr><th>지표</th><th>CNN만</th><th>CNN + 파생특징</th></tr>
+        <tr><td>Macro F1</td><td>0.790</td><td><b>0.844</b></td></tr>
+        <tr><td>Scratch F1</td><td>0.369</td><td><b>0.596</b></td></tr>
+      </table>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/07_derived_feature_comparison.png" alt="파생특징 유무에 따른 클래스별 F1 비교">
+    </div>
+
+    <h2><span class="step-no">5</span>데이터 증강 — Scratch를 한 번 더 개선</h2>
+    <p class="step-goal">회전·반전으로 소수 클래스 표본 다양성 보완</p>
+    <div class="step-body">
+      <p>
+        회전해도 뒤집어도 결함 종류는 유지된다는 성질을 이용해, 표본이 적은 5개 클래스에
+        최대 8배 증강을 적용했습니다 (train 분할 이후에만 적용해 데이터 누수 방지).
+        Scratch F1이 <b>0.61 → 0.75</b>로 다시 한번 크게 올랐습니다.
+      </p>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/08_augmentation_comparison.png" alt="증강 유무에 따른 클래스별 F1 비교">
+      <div class="callout">
+        참고: 이 증강은 "결함 유형 분류"만을 목표로 합니다. 웨이퍼 방향이 진단에 의미를 갖는
+        다른 목적(장비 방향과 결함의 상관관계 분석 등)에는 적절하지 않을 수 있습니다.
+      </div>
+    </div>
+
+    <h2><span class="step-no">6</span>lot 분포 이동 위험 점검</h2>
+    <p class="step-goal">lot 식별자 기준 독립 분할로 재평가</p>
+    <div class="step-body">
+      <p>
+        지금까지는 전부 무작위 분할로 평가했는데, 제조 데이터는 시간에 따라 조건이 바뀌는 게
+        흔합니다. lot 번호(<code>lot1, lot2, ...</code>)를 생산 순서의 대용값으로 써서 확인해보니,
+        <b>초반 20% lot 구간의 불량률이 약 51%</b>, 나머지 구간은 3~10%로 극단적으로 달랐습니다.
+      </p>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/16_lot_drift.png" alt="lot 순서별 불량 비율">
+      <p>
+        같은 lot이 train/test에 걸치지 않도록 고유 lot 기준으로 앞 80%/뒤 20%를 나눠 재평가하니,
+        Macro F1이 <b>0.844 → 0.603</b>으로 뚝 떨어졌습니다 — 무작위 분할이 성능을 낙관적으로
+        보여줄 수 있다는 첫 증거였습니다.
+      </p>
+    </div>
+
+    <h2><span class="step-no">7</span>모델 선택과 최종 평가 분리</h2>
+    <p class="step-goal">Train/Val/Test 3-way 분리 + 신뢰구간</p>
+    <div class="step-body">
+      <p>
+        기존엔 4개 조합(파생특징×증강)을 같은 test set에서 비교하고 최고점을 그대로
+        "최종 성능"이라 보고했는데, 이건 test set을 모델 선택에도 쓴 셈이라 선택 편향
+        위험이 있습니다. train(60%)/validation(20%)/test(20%)로 나눠 <b>validation에서만
+        조합을 고르고, test는 딱 한 번만</b> 평가하도록 재구성했습니다.
+      </p>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/23_train_val_test_evaluation.png" alt="Val 기준 조합 비교 vs 최종 test 평가">
+      <p>결과: <b>Macro F1 0.885</b> (95% CI 0.868~0.900) — 파생특징+증강 조합, 선택 편향을 제거한 수치.</p>
+      <div class="callout warn">
+        다만 이 분할은 <b>웨이퍼 단위 무작위</b> 분할이라, 같은 lot이 train/val/test에 섞일 수
+        있습니다. 즉 0.885는 "같은 분포에서의 성능"이지 "미관측 lot 일반화 성능"이 아닙니다.
+      </div>
+    </div>
+
+    <h2><span class="step-no">8</span>lot 기준 3-way 독립 평가 <span style="font-size:13px;color:var(--accent);font-weight:600;">핵심 결과</span></h2>
+    <p class="step-goal">진짜 "미관측 lot holdout" 성능 측정</p>
+    <div class="step-body">
+      <p>
+        6단계(lot 기준 분할)와 7단계(모델 선택/평가 분리)의 장점을 합쳤습니다. 고유 lot을
+        60%/20%/20%로 나누고, validation(미관측 lot)에서 조합을 고른 뒤 test(더 새로운 lot)에서
+        딱 한 번 평가했습니다.
+      </p>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/24_lot_train_val_test_evaluation.png" alt="lot 기준 Val 조합 선택 vs 최종 lot-test 평가">
+      <table>
+        <tr><th>평가 방식</th><th>Macro F1</th><th>의미</th></tr>
+        <tr><td>웨이퍼 무작위 3-way (7단계)</td><td>0.885</td><td>같은 분포에서 패턴을 얼마나 잘 배우는가</td></tr>
+        <tr><td>lot 2-way (6단계)</td><td>0.603</td><td>모델 고정 후 거친 진단</td></tr>
+        <tr><td><b>lot 3-way (8단계)</b></td><td><b>0.721</b></td><td><b>선택 편향 없이 측정한 공식 대표 수치</b></td></tr>
+      </table>
+      <p>
+        신뢰구간(0.695~0.746)은 같은 lot 안 웨이퍼가 서로 독립이 아닐 수 있다는 점을 반영해
+        <b>lot 단위 cluster bootstrap</b>으로 계산했습니다. 실전 배포 성능을 제시한다면 0.885가
+        아니라 <b>0.721</b>을 "신규 생산 배치에서 기대할 수 있는 성능"으로 보고하는 것이 정직합니다.
+      </p>
+    </div>
+
+    <h2><span class="step-no">9</span>모델의 공간적 반응 확인 (Grad-CAM)</h2>
+    <p class="step-goal">CNN이 실제로 어디를 보고 판단했는가</p>
+    <div class="step-body">
+      <p>
+        점수가 좋다고 모델이 항상 올바른 이유로 맞힌다는 보장은 없습니다. Grad-CAM으로
+        확인한 결과, Random·Near-full·Loc·Edge류는 각 패턴 정의와 대체로 일치하는 위치에
+        반응했지만, <b>Scratch는 선 전체가 아니라 국소적인 지점에만 반응</b>하는 경향이 관찰됐습니다.
+      </p>
+      <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/21_grad_cam_by_class.png" alt="클래스별 Grad-CAM">
+      <div class="callout">
+        한계: 최종 모델은 CNN(이미지)과 파생특징이 결합된 하이브리드 구조입니다. Grad-CAM은
+        CNN 경로만 설명하므로, 파생특징이 판단에 기여한 부분은 이 히트맵에 나타나지 않습니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="margin-left:0">세 가지 성능, 세 가지 질문</h2>
+    <p>이 프로젝트를 한 문장으로 요약하면 "같은 숫자처럼 보이는 성능도, 무엇을 측정했는지에 따라 완전히 다른 질문에 답한다"는 것입니다.</p>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="num hi">0.885</div>
+        <div class="label">동일 분포 성능<br>같은 클래스 분포 안에서 패턴을 얼마나 잘 배우는가</div>
+      </div>
+      <div class="summary-card">
+        <div class="num mid">0.603</div>
+        <div class="label">lot 2-way 진단<br>모델을 고정한 채 새 lot에 던져본 거친 추정치</div>
+      </div>
+      <div class="summary-card">
+        <div class="num" style="color:var(--accent)">0.721</div>
+        <div class="label">lot 3-way 공식 수치<br>선택 편향 없이 측정한 신규 lot 일반화 성능</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="margin-left:0">포트폴리오 핵심 역량</h2>
+    <ul class="compact">
+      <li><b>EDA 기반 문제 정의</b>: 라벨 결측, 최대 약 1,000배 클래스 불균형, 웨이퍼맵 크기 편차를 먼저 파악</li>
+      <li><b>도메인 특징 설계와 통제 실험</b>: 원본 해상도 기반 파생특징과 증강을 설계하고 2×2 ablation으로 효과를 분리 검증</li>
+      <li><b>제조 데이터에 맞춘 평가 설계</b>: 웨이퍼 무작위 분할과 lot 단위 독립 분할을 구분하고, validation 기반 모델 선택과 최종 test 평가를 분리</li>
+      <li><b>불확실성 정량화</b>: lot-cluster bootstrap으로 동일 lot 내 상관을 반영한 신뢰구간 계산</li>
+      <li><b>검증 코드 자체의 재점검</b>: lot 경계 누수 버그를 스스로 찾아 고유 lot 기준 분할로 수정, 그 전후 수치를 투명하게 공개</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 style="margin-left:0">정직하게 남겨둔 한계</h2>
+    <ul class="compact">
+      <li>CPU 환경 제약으로 클래스당 최대 2,000장만 사용 — 전체 데이터·GPU 학습 시 추가 개선 여지</li>
+      <li>Scratch F1(0.60~0.78)이 다른 클래스 대비 여전히 낮고, Grad-CAM에서도 모델이 선 전체보다 국소 단서에 반응하는 경향이 확인됨</li>
+      <li>미관측 lot holdout 성능(0.721)은 동일 분포 성능(0.885)보다 확실히 낮아, 신규 lot 일반화가 보장되지 않음</li>
+      <li>lot 번호는 실제 타임스탬프가 아니므로, 0.721을 미래 시점에 대한 완전한 시간 외삽 성능으로 해석하지 않음</li>
+      <li>lot 구간별 분포 차이가 실제 공정 변화 때문인지 라벨링 정책 때문인지는 메타데이터만으로 확정 불가</li>
+    </ul>
+    <p style="margin-top:16px;">
+      더 자세한 수치와 코드 구조는
+      <a href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/README.md">전체 README</a>와
+      <a href="https://github.com/ojineeee/WM811K_wafer_defect_classification/blob/main/docs/TECHNICAL_REPORT.md">기술 상세 리포트</a>에서 확인하실 수 있습니다.
+    </p>
+  </section>
+
+  <footer>
+    데이터 출처: <a href="http://mirlab.org/dataset/public/">WM-811K</a> (대만 MIR Lab, Wu et al., 2015) · 개인 학습 프로젝트
+  </footer>
+
+</div>
+</body>
+</html>
