@@ -172,7 +172,7 @@
     padding: 22px 24px; box-shadow: var(--shadow-sm);
   }
   .step-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 4px; }
-  .step-card h3 { font-size: 17.5px; margin: 0; letter-spacing: -0.01em; }
+  .step-card h3 { font-size: 19px; margin: 0; letter-spacing: -0.01em; }
   .step-tag {
     font-size: 11.5px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft);
     padding: 3px 9px; border-radius: 999px; letter-spacing: 0.01em;
@@ -375,12 +375,12 @@
       <div class="step">
         <div class="step-marker">5</div>
         <div class="step-card">
-          <h3>데이터 증강 — Scratch를 한 번 더 개선</h3>
+          <h3>데이터 증강 — Scratch F1을 한 번 더 개선</h3>
           <p class="step-goal">회전 · 반전으로 소수 클래스 표본 다양성 보완</p>
           <p class="step-flow">파생특징으로 어느 정도 개선했지만 Scratch는 표본 수 자체가 적어서, 회전·반전으로 데이터를 증강해 한 번 더 보완했습니다.</p>
           <ul class="compact">
             <li>회전·반전해도 결함 종류는 그대로 유지된다는 점을 이용해 표본이 적은 클래스 5개에 최대 8배 증강 적용</li>
-            <li>증강은 train 쪽에만, 그것도 train/val/test로 나눈 뒤에만 적용 — 분할 전에 증강하면 같은 원본 웨이퍼에서 나온 증강 사본이 train과 val/test 양쪽에 들어가 사실상 같은 데이터를 두 번 보는 누수가 생김</li>
+            <li>증강은 train 쪽에만, 분할 이후에만 적용 — 분할 전에 하면 같은 웨이퍼의 증강 사본이 train과 test에 같이 들어가는 누수가 생김</li>
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/08_augmentation_comparison.png" alt="증강 유무에 따른 클래스별 F1 비교">
           <p class="step-conclusion">→ 개선 확인: Scratch F1 0.61→0.75</p>
@@ -492,7 +492,7 @@
   <section id="strengths">
     <div class="section-head">
       <div class="section-eyebrow">Highlights</div>
-      <h2>포트폴리오 핵심 역량</h2>
+      <h2>프로젝트 핵심 역량</h2>
     </div>
     <ul class="compact">
       <li><b>EDA 기반 문제 정의</b> — 라벨 결측, 최대 약 1,000배 클래스 불균형, 웨이퍼맵 크기 편차를 먼저 파악</li>
@@ -506,7 +506,7 @@
   <section id="limits">
     <div class="section-head">
       <div class="section-eyebrow">Honesty</div>
-      <h2>정직하게 남겨둔 한계</h2>
+      <h2>한계점</h2>
     </div>
     <ul class="compact">
       <li>CPU 환경 제약으로 클래스당 최대 2,000장만 사용 — 전체 데이터·GPU 학습 시 추가 개선 여지</li>
