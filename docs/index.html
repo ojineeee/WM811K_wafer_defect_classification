@@ -260,7 +260,7 @@
   <header class="hero">
     <div class="eyebrow">개인 프로젝트 · 반도체 웨이퍼맵 결함 분류</div>
     <h1>WM-811K 웨이퍼맵<br>결함 패턴 분류</h1>
-    <p class="lede">웨이퍼맵 이미지 17만 장을 먼저 EDA로 하나하나 들여다본 뒤, 정상 1종과 결함 8종을 구분하는 CNN 기반 딥러닝 모델을 만들었습니다. 무작위로 섞어서 평가한 성능을 그대로 믿기보다, 실제로 본 적 없는 새 lot에서도 통하는지 따로 확인해봤습니다.</p>
+    <p class="lede">웨이퍼맵 이미지 17만 장을 먼저 EDA로 하나하나 들여다본 뒤, 정상 1종과 결함 8종을 구분하는 CNN 기반 딥러닝 모델을 만들었습니다. 웨이퍼 단위로 무작위로 섞어서 평가한 성능을 그대로 믿기보다, 학습에 쓰이지 않은 lot에서도 통하는지 따로 확인해봤습니다.</p>
     <div class="badges">
       <span class="badge">Python</span>
       <span class="badge">PyTorch (CPU)</span>
@@ -391,7 +391,7 @@
         <div class="step-card">
           <h3>lot 분포 이동 위험 점검</h3>
           <p class="step-goal">lot 식별자 기준 독립 분할로 재평가</p>
-          <p class="step-flow">지금까지의 실험은 모두 무작위 분할이었는데, lot 번호 순서대로 다시 살펴보니 구간별로 불량률 차이가 크다는 것을 확인했습니다.</p>
+          <p class="step-flow">제조 데이터는 시간이 지나며 공정 조건이 바뀌는 경우가 흔한데, 지금까지는 전부 웨이퍼 단위 무작위 분할로 train/test해서 시간 변화에 따른 영향을 확인하지 못했습니다. 그래서 lot 번호 순서를 생산 순서의 대용값으로 삼아, 실제로 이런 분포 이동이 있는지부터 점검했습니다.</p>
           <ul class="compact">
             <li>lot 번호(<code>lot1, lot2, ...</code>)는 실제 생산 시점을 보장하는 값은 아니지만, 번호순으로 확인한 결과 초반 1~2구간의 불량률이 51%로 나머지 구간(3~10%)보다 뚜렷하게 높음</li>
           </ul>
@@ -399,7 +399,7 @@
           <ul class="compact">
             <li>같은 lot이 train과 test에 걸치지 않도록 고유 lot 순서 기준으로 앞 80%/뒤 20%를 나눠 재평가</li>
           </ul>
-          <p class="step-conclusion">→ Macro F1 0.844→0.603으로 하락. 무작위 분할에서는 이런 구간별 편차가 train/test에 고르게 섞여 들어가 드러나지 않았던 것이고, 이는 실제 운영 환경(새 lot이 순서대로 들어오는 상황)을 무작위 분할이 제대로 반영하지 못하고 있었다는 의미입니다.</p>
+          <p class="step-conclusion">→ Macro F1 0.844→0.603으로 하락. 웨이퍼 단위 무작위 분할에서는 이런 구간별 편차가 train/test에 고르게 섞여 들어가 드러나지 않았던 것이고, 이는 실제 운영 환경(새 lot이 순서대로 들어오는 상황)을 제대로 반영하지 못하고 있었다는 의미입니다.</p>
         </div>
       </div>
 
@@ -427,7 +427,7 @@
             <span class="step-tag">핵심 결과</span>
           </div>
           <p class="step-goal">진짜 "미관측 lot holdout" 성능 측정</p>
-          <p class="step-flow">6단계에서 확인한 lot 분포 이동과 7단계에서 다잡은 평가 절차를 합쳐서, 이번엔 lot 기준으로 3-way 분리를 적용했습니다.</p>
+          <p class="step-flow">웨이퍼 단위 무작위 분할로 잰 성능(0.885)을 그대로 실전 기대치로 쓰면 안 된다는 걸 6·7단계에서 확인했으니, 이번엔 lot 단위로 나눠 학습에 쓰이지 않은 lot을 test로 사용해 성능을 측정했습니다.</p>
           <ul class="compact">
             <li>6단계는 lot 기준으로 train/test만 나눈 2-way였고(문제가 있는지만 빠르게 보는 예비 점검), 여기서는 validation까지 포함한 3-way를 lot 기준으로 적용해 모델 선택 편향과 lot 누수를 동시에 제거</li>
             <li>고유 lot을 60/20/20으로 분리 — validation(미관측 lot)에서 조합을 고르고 test lot에서 딱 한 번만 평가</li>
@@ -435,7 +435,7 @@
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/24_lot_train_val_test_evaluation.png" alt="lot 기준 Val 조합 선택 vs 최종 lot-test 평가">
           <table>
             <tr><th>평가 방식</th><th>Macro F1</th><th>의미</th></tr>
-            <tr><td>웨이퍼 무작위 3-way (7단계)</td><td>0.885</td><td>같은 분포에서 패턴을 얼마나 잘 배우는가</td></tr>
+            <tr><td>웨이퍼 단위 무작위 3-way (7단계)</td><td>0.885</td><td>같은 분포에서 패턴을 얼마나 잘 배우는가</td></tr>
             <tr><td>lot 2-way (6단계)</td><td>0.603</td><td>validation 없이 train/test만 비교한 예비 점검</td></tr>
             <tr><td><b>lot 3-way (8단계)</b></td><td><b>0.721</b></td><td><b>선택 편향 없이 측정한 공식 대표 수치</b></td></tr>
           </table>
@@ -478,11 +478,11 @@
       </div>
       <div class="summary-card mid">
         <div class="num">0.603</div>
-        <div class="label">lot 2-way 진단<br>모델을 고정한 채 새 lot에 던져본 거친 추정치</div>
+        <div class="label">lot 2-way 진단<br>모델을 고정한 채 학습에 쓰이지 않은 lot에 던져본 예비 추정치</div>
       </div>
       <div class="summary-card pick">
         <div class="num">0.721</div>
-        <div class="label">lot 3-way 공식 수치<br>선택 편향 없이 측정한 신규 lot 일반화 성능</div>
+        <div class="label">lot 3-way 공식 수치<br>선택 편향 없이 측정한 미관측 lot 일반화 성능</div>
       </div>
     </div>
   </section>
@@ -495,7 +495,7 @@
     <ul class="compact">
       <li><b>EDA 기반 문제 정의</b> — 라벨 결측, 최대 약 1,000배 클래스 불균형, 웨이퍼맵 크기 편차를 먼저 파악</li>
       <li><b>도메인 특징 설계와 통제 실험</b> — 원본 해상도 기반 파생특징과 증강을 설계하고 2×2 ablation으로 효과를 분리 검증</li>
-      <li><b>제조 데이터에 맞춘 평가 설계</b> — 웨이퍼 무작위 분할과 lot 단위 독립 분할을 구분하고, validation 기반 모델 선택과 최종 test 평가를 분리</li>
+      <li><b>제조 데이터에 맞춘 평가 설계</b> — 웨이퍼 단위 무작위 분할과 lot 단위 독립 분할을 구분하고, validation 기반 모델 선택과 최종 test 평가를 분리</li>
       <li><b>불확실성 정량화</b> — lot-cluster bootstrap으로 동일 lot 내 상관을 반영한 신뢰구간 계산</li>
       <li><b>검증 코드 자체의 재점검</b> — lot 경계 누수 버그를 스스로 찾아 고유 lot 기준 분할로 수정, 그 전후 수치를 투명하게 공개</li>
     </ul>
@@ -509,7 +509,7 @@
     <ul class="compact">
       <li>CPU 환경 제약으로 클래스당 최대 2,000장만 사용 — 전체 데이터·GPU 학습 시 추가 개선 여지</li>
       <li>Scratch F1(0.60~0.78)이 다른 클래스 대비 여전히 낮고, Grad-CAM에서도 모델이 선 전체보다 국소 단서에 반응하는 경향이 확인됨</li>
-      <li>미관측 lot holdout 성능(0.721)은 동일 분포 성능(0.885)보다 확실히 낮아, 신규 lot 일반화가 보장되지 않음</li>
+      <li>미관측 lot holdout 성능(0.721)은 동일 분포 성능(0.885)보다 확실히 낮아, 미관측 lot 일반화가 보장되지 않음</li>
       <li>lot 번호는 실제 타임스탬프가 아니므로, 0.721을 미래 시점에 대한 완전한 시간 외삽 성능으로 해석하지 않음</li>
       <li>lot 구간별 분포 차이가 실제 공정 변화 때문인지 라벨링 정책 때문인지는 메타데이터만으로 확정 불가</li>
     </ul>
