@@ -292,7 +292,7 @@
     </div>
     <p>웨이퍼 한 장에는 수백~수천 개의 칩(다이)이 배열되어 있고, 검사 후 "이 칩은 정상/불량"이라는 결과가 웨이퍼 전체를 하나의 지도(맵)처럼 나타냅니다. 불량 칩들은 무작위로 흩어지기보다 <b>특정 공간 패턴</b>을 형성하는 경우가 많으며, 이러한 패턴은 공정·장비 이상 원인의 후보를 좁히는 단서로 활용될 수 있습니다. 예를 들어 가장자리 집중 패턴은 정렬·공정 균일도 문제와, 선형 패턴은 이송·접촉 과정의 손상과 연관될 가능성이 있습니다. 이 프로젝트의 목표는 이러한 패턴을 사람이 일일이 판별하는 대신 <b>웨이퍼맵을 보고 자동으로 분류하는 모델</b>을 만드는 것입니다.</p>
     <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/03_class_samples.png" alt="결함 유형별 샘플 웨이퍼맵" style="max-width:66%; margin: 14px auto;">
-    <p class="cap" style="margin-top:6px;">정상 1종 + 결함 8종의 실제 웨이퍼맵 예시</p>
+    <p class="cap" style="margin-top:6px; text-align:center;">정상 1종 + 결함 8종의 실제 웨이퍼맵 예시</p>
   </section>
 
   <section id="flow">
@@ -355,7 +355,7 @@
       <div class="step">
         <div class="step-marker">4</div>
         <div class="step-card">
-          <h3>도메인 파생특징 — Scratch 개선</h3>
+          <h3>도메인 파생특징 — Scratch F1 개선</h3>
           <p class="step-goal">원본 맵의 공간정보로 CNN 보완</p>
           <p class="step-flow">Scratch는 결함 픽셀이 넓게 흩어져 있어 밀도만 보면 정상과 큰 차이가 없고, 이 때문에 CNN이 밀도 기반 패턴만으로는 구분하기 어렵다는 것을 확인해서, 원본 이미지의 공간정보(위치·분포 형태)를 담은 파생특징을 추가했습니다.</p>
           <ul class="compact">
@@ -380,7 +380,7 @@
           <p class="step-flow">파생특징으로 어느 정도 개선했지만 Scratch는 표본 수 자체가 적어서, 회전·반전으로 데이터를 증강해 한 번 더 보완했습니다.</p>
           <ul class="compact">
             <li>회전·반전해도 결함 종류는 그대로 유지된다는 점을 이용해 표본이 적은 클래스 5개에 최대 8배 증강 적용</li>
-            <li>train 쪽에만, 그것도 분할 이후에만 적용해 누수 방지</li>
+            <li>증강은 train 쪽에만, 그것도 train/val/test로 나눈 뒤에만 적용 — 분할 전에 증강하면 같은 원본 웨이퍼에서 나온 증강 사본이 train과 val/test 양쪽에 들어가 사실상 같은 데이터를 두 번 보는 누수가 생김</li>
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/08_augmentation_comparison.png" alt="증강 유무에 따른 클래스별 F1 비교">
           <p class="step-conclusion">→ 개선 확인: Scratch F1 0.61→0.75</p>
@@ -391,7 +391,7 @@
       <div class="step">
         <div class="step-marker">6</div>
         <div class="step-card">
-          <h3>lot 분포 이동 위험 점검</h3>
+          <h3>lot 순서별 분포 이동 확인</h3>
           <p class="step-goal">lot 식별자 기준 독립 분할로 재평가</p>
           <p class="step-flow">제조 데이터는 시간이 지나며 공정 조건이 바뀌는 경우가 흔한데, 지금까지는 전부 웨이퍼 단위 무작위 분할로 train/test해서 시간 변화에 따른 영향을 확인하지 못했습니다. 그래서 lot 번호 순서를 생산 순서의 대용값으로 삼아, 실제로 이런 분포 이동이 있는지부터 점검했습니다.</p>
           <ul class="compact">
@@ -412,12 +412,12 @@
           <p class="step-goal">Train / Val / Test 3-way 분리 + 신뢰구간</p>
           <p class="step-flow">지금까지는 여러 실험 중 가장 좋은 조합(파생특징+증강)을 그대로 최종 성능처럼 봤는데, 이 방식 자체가 선택 편향을 만들 수 있어서 평가 절차를 다시 분리했습니다.</p>
           <ul class="compact">
-            <li>네 조합(파생특징×증강)을 같은 test set에서 비교해 제일 높은 걸 그대로 최종 성능으로 보고하면, test set을 모델 고르는 데도 쓴 셈이라 점수가 부풀려질 수 있음</li>
+            <li>네 조합(파생특징×증강)을 같은 test set에서 비교해 제일 높은 걸 그대로 최종 성능으로 보고하면, test set을 모델 고르는 데도 쓴 셈이라 수치가 부풀려질 수 있음</li>
             <li>train(60%)/validation(20%)/test(20%)로 분리 — validation에서만 조합을 고르고 test는 딱 한 번만 평가</li>
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/23_train_val_test_evaluation.png" alt="Val 기준 조합 비교 vs 최종 test 평가">
-          <p class="step-conclusion">→ 파생특징+증강 조합이 제일 좋았다 (Macro F1 0.885, 95% CI 0.868~0.900)</p>
-          <div class="callout warn">이 분할도 웨이퍼 단위 무작위 분할이라, 같은 lot의 웨이퍼가 train과 test에 함께 섞여 들어갈 수 있습니다. 즉 0.885는 "같은 분포 안에서의 성능"이고, 한 번도 본 적 없는 lot에서의 성능은 아직 확인된 게 아닙니다.</div>
+          <p class="step-conclusion">→ 파생특징+증강 조합이 제일 우수 (Macro F1 0.885, 95% CI 0.868~0.900)</p>
+          <div class="callout warn">이 분할도 웨이퍼 단위 무작위 분할이라, 같은 lot의 웨이퍼가 train과 test에 함께 섞여 들어갈 수 있습니다. 즉 0.885는 "같은 분포 안에서의 성능"이고, 모델이 접하지 않은 lot에서의 성능은 아직 확인된 게 아닙니다.</div>
         </div>
       </div>
 
@@ -429,9 +429,9 @@
             <span class="step-tag">핵심 결과</span>
           </div>
           <p class="step-goal">진짜 "미관측 lot holdout" 성능 측정</p>
-          <p class="step-flow">웨이퍼 단위 무작위 분할로 잰 성능(0.885)을 그대로 실전 기대치로 쓰면 안 된다는 걸 6·7단계에서 확인했으니, 이번엔 lot 단위로 나눠 학습에 쓰이지 않은 lot을 test로 사용해 성능을 측정했습니다.</p>
+          <p class="step-flow">웨이퍼 단위 무작위 분할로 확인한 성능(0.885)을 그대로 실제 운영 기대치로 쓰면 안 된다는 걸 6·7단계에서 알아냈으니, 이번엔 lot 단위로 나눠 학습에 쓰이지 않은 lot을 test로 사용해 성능을 측정했습니다.</p>
           <ul class="compact">
-            <li>6단계는 lot 기준으로 train/test만 나눈 2-way였고(문제가 있는지만 빠르게 보는 예비 점검), 여기서는 validation까지 포함한 3-way를 lot 기준으로 적용해 모델 선택 편향과 lot 누수를 동시에 제거</li>
+            <li>6단계는 lot 기준으로 train/test만 나눈 2-way였고, 여기서는 validation까지 포함한 3-way를 lot 기준으로 적용해 모델 선택 편향과 lot 누수를 동시에 제거</li>
             <li>고유 lot을 60/20/20으로 분리 — validation(미관측 lot)에서 조합을 고르고 test lot에서 딱 한 번만 평가</li>
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/24_lot_train_val_test_evaluation.png" alt="lot 기준 Val 조합 선택 vs 최종 lot-test 평가">
