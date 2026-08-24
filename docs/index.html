@@ -112,7 +112,7 @@
   h1 {
     font-size: 34px; margin: 0 0 16px; letter-spacing: -0.02em; font-weight: 800; line-height: 1.25;
   }
-  .lede { font-size: 17.5px; color: var(--text-soft); max-width: 60ch; margin: 0 0 28px; }
+  .lede { font-size: 17.5px; color: var(--text-soft); margin: 0 0 28px; }
   .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
   .badge {
     font-size: 12.5px; font-weight: 600; padding: 6px 13px; border-radius: 999px;
@@ -148,7 +148,7 @@
   .section-head { margin-bottom: 28px; }
   .section-eyebrow { font-size: 12.5px; font-weight: 700; color: var(--accent-ink); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
   .section-head h2 { font-size: 24px; margin: 0; letter-spacing: -0.01em; }
-  .section-head p { color: var(--text-soft); margin: 8px 0 0; max-width: 64ch; }
+  .section-head p { color: var(--text-soft); margin: 8px 0 0; }
 
   /* ---------- Timeline ---------- */
   .timeline { position: relative; }
@@ -291,15 +291,15 @@
       <h2>프로젝트 목적</h2>
     </div>
     <p>웨이퍼 한 장에는 수백~수천 개의 칩(다이)이 배열되어 있고, 검사 후 "이 칩은 정상/불량"이라는 결과가 웨이퍼 전체를 하나의 지도(맵)처럼 나타냅니다. 불량 칩들은 무작위로 흩어지기보다 <b>특정 공간 패턴</b>을 형성하는 경우가 많으며, 이러한 패턴은 공정·장비 이상 원인의 후보를 좁히는 단서로 활용될 수 있습니다. 예를 들어 가장자리 집중 패턴은 정렬·공정 균일도 문제와, 선형 패턴은 이송·접촉 과정의 손상과 연관될 가능성이 있습니다. 이 프로젝트의 목표는 이러한 패턴을 사람이 일일이 판별하는 대신 <b>웨이퍼맵을 보고 자동으로 분류하는 모델</b>을 만드는 것입니다.</p>
-    <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/03_class_samples.png" alt="결함 유형별 샘플 웨이퍼맵" style="max-width:66%; margin-left:auto; margin-right:auto;">
-    <p class="cap">정상 1종 + 결함 8종의 실제 웨이퍼맵 예시 — 위에서 말한 "특정 공간 패턴"이 실제로 이런 모양입니다.</p>
+    <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/03_class_samples.png" alt="결함 유형별 샘플 웨이퍼맵" style="max-width:66%; margin: 14px auto;">
+    <p class="cap" style="margin-top:6px;">정상 1종 + 결함 8종의 실제 웨이퍼맵 예시</p>
   </section>
 
   <section id="flow">
     <div class="section-head">
       <div class="section-eyebrow">Process</div>
       <h2>진행 흐름 — 9단계</h2>
-      <p>뒤로 갈수록 "이 성능이 정말 믿을 만한가"를 점점 더 엄격하게 되묻는 구조입니다.</p>
+      <p>각 단계는 이전 단계 평가 방식의 한계(선택 편향, lot 누수 등)를 하나씩 찾아 보완해나가는 순서로 구성되어 있습니다.</p>
     </div>
 
     <div class="timeline">
@@ -343,8 +343,8 @@
           <p class="step-flow">전처리를 마친 데이터로 우선 기본적인 CNN을 학습시켜 baseline 성능과 약점을 확인했습니다.</p>
           <ul class="compact">
             <li>작은 CNN(합성곱 3층)을 CPU로 15 epoch 학습 — Macro F1 <b>0.80</b>, Accuracy 80.1%</li>
-            <li>Edge-Ring(0.95), Center(0.93) 등 모양이 뚜렷한 클래스는 높은 성능</li>
-            <li>Scratch(0.37)만 낮음 — none·Loc과 혼동 다수 발생</li>
+            <li>Edge-Ring(F1 0.95), Center(F1 0.93) 등 모양이 뚜렷한 클래스는 F1 높음</li>
+            <li>Scratch만 F1 0.37로 낮음 — none·Loc과 혼동 다수 발생</li>
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/05_confusion_matrix.png" alt="혼동행렬">
           <p class="cap">혼동행렬 — Scratch가 none이나 Loc으로 자주 잘못 분류됩니다.</p>
