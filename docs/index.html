@@ -182,6 +182,10 @@
   .step-card p:last-child { margin-bottom: 0; }
   .step-card img { margin: 14px 0; }
   .cap { font-size: 13px; color: var(--text-faint); margin: -6px 0 14px; }
+  .step-flow { font-weight: 600; }
+  .step-conclusion { font-weight: 700; color: var(--accent-ink); }
+  .step-card ul.compact { margin-bottom: 14px; }
+  .step-card ul.compact:last-child { margin-bottom: 0; }
 
   .callout {
     background: var(--bg-soft); border: 1px solid var(--border); border-left: 3px solid var(--accent);
@@ -301,11 +305,17 @@
       <div class="step">
         <div class="step-marker">1</div>
         <div class="step-card">
-          <h3>EDA — 데이터의 함정부터 확인</h3>
+          <h3>EDA — 데이터 분포와 편향 확인</h3>
           <p class="step-goal">라벨 비율 · 클래스 불균형 · 웨이퍼 크기 편차 파악</p>
-          <p>전체 81만 장 중 라벨이 붙은 건 17만 장, 21.3%뿐이었습니다. 그마저도 정상(none)이 147,431장으로 85%를 차지하고, 가장 희귀한 Near-full은 149장(0.09%)이라 둘 사이 비율 차이가 <b>거의 1,000배</b>였습니다. 웨이퍼맵 크기도 346가지나 돼서 모델에 넣기 전에 이것부터 정리해야 했습니다.</p>
+          <p class="step-flow">본격적으로 모델을 만들기 전에, 데이터의 분포와 편향부터 먼저 점검했습니다.</p>
+          <ul class="compact">
+            <li>라벨 있는 데이터는 전체 81만 장 중 17만 장(21.3%)뿐</li>
+            <li>정상(none)이 147,431장으로 85% 차지, 가장 희귀한 Near-full은 149장(0.09%) — 최대 <b>1,000배</b> 클래스 불균형</li>
+            <li>웨이퍼맵 크기가 346가지로 제각각</li>
+          </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/01_class_distribution.png" alt="클래스 분포 (로그 스케일)">
           <p class="cap">클래스 분포 — none이 워낙 많아서 나머지 8종은 로그 스케일로 봐야 겨우 비교가 됩니다.</p>
+          <p class="step-conclusion">→ 크기 통일과 클래스 불균형 대응이 요구됨</p>
         </div>
       </div>
 
@@ -314,7 +324,12 @@
         <div class="step-card">
           <h3>전처리 — 크기를 어떻게 통일했는가</h3>
           <p class="step-goal">범주형 값을 보존하며 이미지 크기 통일</p>
-          <p>0은 칩 없음, 1은 정상, 2는 불량을 뜻하는 범주형 값이라, 사진처럼 부드럽게 리사이즈하면 값이 뭉개집니다. 그래서 <b>최근접 이웃(nearest-neighbor)</b> 방식으로 64×64에 맞췄고, 클래스당 최대 2,000장 상한을 둬서 학습셋 12,763장을 구성했습니다.</p>
+          <p class="step-flow">EDA에서 확인한 크기 편차 때문에 이 상태로는 학습이 되지 않아서(CNN은 고정 크기 입력이 필요), 크기를 통일하는 전처리를 진행했습니다.</p>
+          <ul class="compact">
+            <li>0=칩 없음, 1=정상, 2=불량을 뜻하는 범주형 값 보존이 관건 — 일반적인 보간 방식으로 Re-size하면 값이 뭉개짐</li>
+            <li><b>최근접 이웃(nearest-neighbor)</b> 방식으로 64×64 Re-size</li>
+            <li>클래스당 최대 2,000장 상한 → 학습셋 12,763장 구성</li>
+          </ul>
         </div>
       </div>
 
@@ -323,24 +338,35 @@
         <div class="step-card">
           <h3>기본 CNN — 첫 결과와 약점 발견</h3>
           <p class="step-goal">9개 클래스(정상 + 결함 8종) 분류</p>
-          <p>작은 CNN(합성곱 3층)을 CPU로 15 epoch 돌렸더니 Macro F1 <b>0.80</b>, Accuracy 80.1%가 나왔습니다. Edge-Ring(0.95)이나 Center(0.93)처럼 모양이 뚜렷한 건 잘 맞혔는데, <b>Scratch만 F1 0.37로 유독 안 됐습니다.</b></p>
+          <p class="step-flow">전처리를 마친 데이터로 우선 기본적인 CNN을 학습시켜 baseline 성능과 약점을 확인했습니다.</p>
+          <ul class="compact">
+            <li>작은 CNN(합성곱 3층)을 CPU로 15 epoch 학습 — Macro F1 <b>0.80</b>, Accuracy 80.1%</li>
+            <li>Edge-Ring(0.95), Center(0.93) 등 모양이 뚜렷한 클래스는 높은 성능</li>
+            <li>Scratch(0.37)만 낮음 — none·Loc과 혼동 다수 발생</li>
+          </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/05_confusion_matrix.png" alt="혼동행렬">
           <p class="cap">혼동행렬 — Scratch가 none이나 Loc으로 자주 잘못 분류됩니다.</p>
+          <p class="step-conclusion">→ Scratch를 별도로 개선할 필요성 확인</p>
         </div>
       </div>
 
       <div class="step">
         <div class="step-marker">4</div>
         <div class="step-card">
-          <h3>도메인 파생특징 — 왜 Scratch만 어려운가</h3>
+          <h3>도메인 파생특징 — Scratch 개선</h3>
           <p class="step-goal">원본 맵의 공간정보로 CNN 보완</p>
-          <p>왜 그런가 들여다보니 <b>Scratch의 불량 칩 비율(10.1%)이 오히려 정상 웨이퍼(10.6%)보다 낮았습니다.</b> 선이 가늘고 길다 보니 불량 칩 수 자체가 적고, 64×64로 줄이는 과정에서 그 선마저 뭉개진 거였습니다. 그래서 원본 해상도에서 직접 계산한 파생특징 8개(불량 밀도, 중심으로부터 거리, 행·열 집중도 등)를 CNN에 같이 넣어봤습니다.</p>
+          <p class="step-flow">Scratch는 결함 픽셀이 넓게 흩어져 있어 밀도만 보면 정상과 큰 차이가 없고, 이 때문에 CNN이 밀도 기반 패턴만으로는 구분하기 어렵다는 것을 확인해서, 원본 이미지의 공간정보(위치·분포 형태)를 담은 파생특징을 추가했습니다.</p>
+          <ul class="compact">
+            <li>Scratch 결함밀도 10.1% vs 정상 10.6% — 밀도만으로는 구분이 거의 안 됨</li>
+            <li>원본 해상도에서 계산한 파생특징 8개(불량 밀도, 중심으로부터 거리, 행·열 집중도 등)를 CNN에 함께 입력</li>
+          </ul>
           <table>
             <tr><th>지표</th><th>CNN만</th><th>CNN + 파생특징</th></tr>
             <tr><td>Macro F1</td><td>0.790</td><td><b>0.844</b></td></tr>
             <tr><td>Scratch F1</td><td>0.369</td><td><b>0.596</b></td></tr>
           </table>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/07_derived_feature_comparison.png" alt="파생특징 유무에 따른 클래스별 F1 비교">
+          <p class="step-conclusion">→ 개선 확인: Macro F1 0.790→0.844, Scratch F1 0.369→0.596</p>
         </div>
       </div>
 
@@ -349,9 +375,14 @@
         <div class="step-card">
           <h3>데이터 증강 — Scratch를 한 번 더 개선</h3>
           <p class="step-goal">회전 · 반전으로 소수 클래스 표본 다양성 보완</p>
-          <p>회전시키거나 뒤집어도 결함 종류는 그대로 유지된다는 점을 이용해서, 표본이 적은 클래스 5개에 최대 8배 증강을 적용했습니다. train 쪽에만, 그것도 분할 이후에만 적용해서 누수는 막았습니다. Scratch F1이 <b>0.61에서 0.75</b>로 한 번 더 올랐습니다.</p>
+          <p class="step-flow">파생특징으로 어느 정도 개선했지만 Scratch는 표본 수 자체가 적어서, 회전·반전으로 데이터를 증강해 한 번 더 보완했습니다.</p>
+          <ul class="compact">
+            <li>회전·반전해도 결함 종류는 그대로 유지된다는 점을 이용해 표본이 적은 클래스 5개에 최대 8배 증강 적용</li>
+            <li>train 쪽에만, 그것도 분할 이후에만 적용해 누수 방지</li>
+          </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/08_augmentation_comparison.png" alt="증강 유무에 따른 클래스별 F1 비교">
-          <div class="callout">이 증강은 어디까지나 "결함 유형을 구분"하는 게 목표일 때 유효합니다. 웨이퍼 방향 자체가 의미 있는 분석(장비 방향과 결함의 상관관계 같은)에는 맞지 않을 수 있습니다.</div>
+          <p class="step-conclusion">→ 개선 확인: Scratch F1 0.61→0.75</p>
+          <div class="callout">이 증강은 어디까지나 "결함 유형을 구분"하는 게 목표일 때 유효합니다. 회전·반전을 적용하면 웨이퍼의 원래 방향 정보가 사라지므로, 결함 위치와 설비 방향의 관계처럼 방향 자체가 의미를 갖는 분석에는 이 데이터를 쓰면 안 됩니다.</div>
         </div>
       </div>
 
@@ -360,9 +391,15 @@
         <div class="step-card">
           <h3>lot 분포 이동 위험 점검</h3>
           <p class="step-goal">lot 식별자 기준 독립 분할로 재평가</p>
-          <p>지금까지는 다 무작위로 섞어서 평가했는데, 제조 데이터는 시간이 지나면서 공정 조건이 바뀌는 일이 흔합니다. lot 번호(<code>lot1, lot2, ...</code>)를 생산 순서 대신 써서 확인해보니, <b>초반 20% lot 구간의 불량률이 51%</b>였고 나머지는 3~10%대였습니다. 거의 다른 데이터처럼 보일 정도였습니다.</p>
+          <p class="step-flow">지금까지의 실험은 모두 무작위 분할이었는데, lot 번호 순서대로 다시 살펴보니 구간별로 불량률 차이가 크다는 것을 확인했습니다.</p>
+          <ul class="compact">
+            <li>lot 번호(<code>lot1, lot2, ...</code>)는 실제 생산 시점을 보장하는 값은 아니지만, 번호순으로 확인한 결과 초반 1~2구간의 불량률이 51%로 나머지 구간(3~10%)보다 뚜렷하게 높음</li>
+          </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/16_lot_drift.png" alt="lot 순서별 불량 비율">
-          <p>같은 lot이 train과 test에 걸치지 않게 고유 lot 기준으로 앞 80%/뒤 20%를 나눠서 다시 평가했더니, Macro F1이 <b>0.844에서 0.603</b>으로 뚝 떨어졌습니다. 무작위 분할만 믿고 있었으면 몰랐을 결과입니다.</p>
+          <ul class="compact">
+            <li>같은 lot이 train과 test에 걸치지 않도록 고유 lot 순서 기준으로 앞 80%/뒤 20%를 나눠 재평가</li>
+          </ul>
+          <p class="step-conclusion">→ Macro F1 0.844→0.603으로 하락. 무작위 분할에서는 이런 구간별 편차가 train/test에 고르게 섞여 들어가 드러나지 않았던 것이고, 이는 실제 운영 환경(새 lot이 순서대로 들어오는 상황)을 무작위 분할이 제대로 반영하지 못하고 있었다는 의미입니다.</p>
         </div>
       </div>
 
@@ -371,10 +408,14 @@
         <div class="step-card">
           <h3>모델 선택과 최종 평가 분리</h3>
           <p class="step-goal">Train / Val / Test 3-way 분리 + 신뢰구간</p>
-          <p>원래는 네 조합(파생특징×증강)을 같은 test set에서 비교하고 제일 높은 걸 그대로 최종 성능이라 보고했는데, 생각해보니 이건 test set을 모델 고르는 데도 쓴 셈이라 점수가 부풀려질 수 있는 구조였습니다. 그래서 train(60%)/validation(20%)/test(20%)로 나눠서, <b>validation에서만 조합을 고르고 test는 딱 한 번만</b> 평가하도록 다시 짰습니다.</p>
+          <p class="step-flow">지금까지는 여러 실험 중 가장 좋은 조합(파생특징+증강)을 그대로 최종 성능처럼 봤는데, 이 방식 자체가 선택 편향을 만들 수 있어서 평가 절차를 다시 분리했습니다.</p>
+          <ul class="compact">
+            <li>네 조합(파생특징×증강)을 같은 test set에서 비교해 제일 높은 걸 그대로 최종 성능으로 보고하면, test set을 모델 고르는 데도 쓴 셈이라 점수가 부풀려질 수 있음</li>
+            <li>train(60%)/validation(20%)/test(20%)로 분리 — validation에서만 조합을 고르고 test는 딱 한 번만 평가</li>
+          </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/23_train_val_test_evaluation.png" alt="Val 기준 조합 비교 vs 최종 test 평가">
-          <p>결과는 <b>Macro F1 0.885</b>(95% CI 0.868~0.900) — 파생특징+증강 조합이고, 선택 편향을 걷어낸 수치입니다.</p>
-          <div class="callout warn">다만 이 분할도 웨이퍼를 무작위로 섞은 거라, 같은 lot이 train/val/test에 다 섞여 들어갈 수 있습니다. 그러니까 0.885는 "같은 분포 안에서의 성능"이지, 미관측 lot에서의 성능은 아직 모릅니다.</div>
+          <p class="step-conclusion">→ 파생특징+증강 조합이 제일 좋았다 (Macro F1 0.885, 95% CI 0.868~0.900)</p>
+          <div class="callout warn">이 분할도 웨이퍼 단위 무작위 분할이라, 같은 lot의 웨이퍼가 train과 test에 함께 섞여 들어갈 수 있습니다. 즉 0.885는 "같은 분포 안에서의 성능"이고, 한 번도 본 적 없는 lot에서의 성능은 아직 확인된 게 아닙니다.</div>
         </div>
       </div>
 
@@ -386,15 +427,22 @@
             <span class="step-tag">핵심 결과</span>
           </div>
           <p class="step-goal">진짜 "미관측 lot holdout" 성능 측정</p>
-          <p>6단계(lot 기준 분할)와 7단계(모델 선택/평가 분리)를 합쳤습니다. 고유 lot을 60/20/20으로 나누고, validation(미관측 lot)에서 조합을 고른 다음 test lot에서 딱 한 번만 평가했습니다.</p>
+          <p class="step-flow">6단계에서 확인한 lot 분포 이동과 7단계에서 다잡은 평가 절차를 합쳐서, 이번엔 lot 기준으로 3-way 분리를 적용했습니다.</p>
+          <ul class="compact">
+            <li>6단계는 lot 기준으로 train/test만 나눈 2-way였고(문제가 있는지만 빠르게 보는 예비 점검), 여기서는 validation까지 포함한 3-way를 lot 기준으로 적용해 모델 선택 편향과 lot 누수를 동시에 제거</li>
+            <li>고유 lot을 60/20/20으로 분리 — validation(미관측 lot)에서 조합을 고르고 test lot에서 딱 한 번만 평가</li>
+          </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/24_lot_train_val_test_evaluation.png" alt="lot 기준 Val 조합 선택 vs 최종 lot-test 평가">
           <table>
             <tr><th>평가 방식</th><th>Macro F1</th><th>의미</th></tr>
             <tr><td>웨이퍼 무작위 3-way (7단계)</td><td>0.885</td><td>같은 분포에서 패턴을 얼마나 잘 배우는가</td></tr>
-            <tr><td>lot 2-way (6단계)</td><td>0.603</td><td>모델 고정 후 거친 진단</td></tr>
+            <tr><td>lot 2-way (6단계)</td><td>0.603</td><td>validation 없이 train/test만 비교한 예비 점검</td></tr>
             <tr><td><b>lot 3-way (8단계)</b></td><td><b>0.721</b></td><td><b>선택 편향 없이 측정한 공식 대표 수치</b></td></tr>
           </table>
-          <p>신뢰구간(0.695~0.746)은 같은 lot 안 웨이퍼끼리는 서로 독립이 아닐 수 있다는 걸 감안해서 <b>lot 단위 cluster bootstrap</b>으로 계산했습니다. 실제로 배포한다면 0.885가 아니라 <b>0.721</b>을 "이 모델이 새 생산 배치에서 낼 수 있는 성능"으로 말하는 게 맞다고 생각합니다.</p>
+          <ul class="compact">
+            <li>신뢰구간(0.695~0.746)은 같은 lot 안 웨이퍼끼리는 서로 독립이 아닐 수 있다는 걸 감안해 <b>lot 단위 cluster bootstrap</b>으로 계산</li>
+          </ul>
+          <p class="step-conclusion">→ 실제 운영에서 기대할 성능은 0.885가 아니라, 미관측 lot 기준으로 측정한 0.721에 더 가깝다고 보는 게 맞습니다.</p>
         </div>
       </div>
 
@@ -403,9 +451,14 @@
         <div class="step-card">
           <h3>모델의 공간적 반응 확인 (Grad-CAM)</h3>
           <p class="step-goal">CNN이 실제로 어디를 보고 판단했는가</p>
-          <p>점수가 좋다고 모델이 항상 맞는 이유로 맞히는 건 아니라서, Grad-CAM으로 실제로 어디를 보고 판단했는지 확인해봤습니다. Random·Near-full·Loc·Edge류는 대체로 패턴 정의와 맞는 위치에 반응했는데, <b>Scratch는 선 전체가 아니라 한 지점에만 반응</b>하는 경우가 많았습니다.</p>
+          <p class="step-flow">수치로는 성능을 확인했으니, 마지막으로 모델이 실제로 어디를 보고 판단하는지 Grad-CAM으로 눈으로 확인했습니다.</p>
+          <ul class="compact">
+            <li>최종 모델은 이미지를 보는 CNN 경로와 파생특징 8개를 보는 경로를 각각 계산한 뒤 합쳐서 분류하는 구조라 "하이브리드 모델"이라고 부름</li>
+            <li>Random·Near-full·Loc·Edge류는 CNN이 대체로 실제 결함 위치를 보고 판단</li>
+            <li>Scratch는 선 전체가 아니라 한 지점에만 국소적으로 반응하는 경우가 많음</li>
+          </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/21_grad_cam_by_class.png" alt="클래스별 Grad-CAM">
-          <div class="callout">다만 최종 모델은 CNN과 파생특징을 같이 쓰는 구조라, Grad-CAM은 CNN 쪽 경로만 보여줍니다. 파생특징이 얼마나 기여했는지는 이 히트맵으로는 알 수 없습니다.</div>
+          <div class="callout">다만 Grad-CAM은 CNN 이미지 경로만 보여줍니다. 파생특징 경로가 판단에 얼마나 기여했는지는 이 히트맵으로는 알 수 없습니다.</div>
         </div>
       </div>
 
