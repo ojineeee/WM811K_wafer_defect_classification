@@ -260,22 +260,21 @@
   <header class="hero">
     <div class="eyebrow">개인 프로젝트 · 반도체 웨이퍼맵 결함 분류</div>
     <h1>WM-811K 웨이퍼맵<br>결함 패턴 분류</h1>
-    <p class="lede">웨이퍼맵 이미지 17만 장을 먼저 EDA로 하나하나 들여다본 뒤, 정상 1종과 결함 8종을 구분하는 CNN 기반 딥러닝 모델을 만들었습니다. 웨이퍼 단위로 무작위로 섞어서 Train/Test한 성능을 그대로 믿기보다, 모델이 접하지 않은 lot에서도 통하는지 따로 확인해봤습니다.</p>
+    <p class="lede">웨이퍼맵 이미지 17만 장을 먼저 EDA로 하나하나 들여다본 뒤, 정상 1종과 결함 8종을 구분하는 CNN 기반 딥러닝 모델을 만들었습니다. 웨이퍼 단위로 무작위로 섞어서 Train/Test한 성능을 그대로 믿기보다, 학습에 쓰이지 않은 lot에서도 통하는지 따로 확인해봤습니다.</p>
     <div class="badges">
       <span class="badge">Python</span>
-      <span class="badge">PyTorch (CPU)</span>
-      <span class="badge">scikit-learn</span>
+      <span class="badge">EDA</span>
+      <span class="badge">CNN</span>
       <span class="badge">Grad-CAM</span>
-      <span class="badge">Bootstrap CI</span>
     </div>
     <div class="stat-bar">
       <div class="stat">
         <div class="num">0.885</div>
-        <div class="label">동일 분포(IID) 무작위 holdout Macro F1</div>
+        <div class="label">웨이퍼 단위 무작위 train/test holdout Macro F1</div>
       </div>
       <div class="stat">
         <div class="num">0.721</div>
-        <div class="label">미관측 lot holdout Macro F1 · 공식 대표 수치</div>
+        <div class="label">학습에 쓰이지 않은 lot holdout Macro F1 · 공식 대표 수치</div>
       </div>
     </div>
     <div class="btn-row">
@@ -417,7 +416,7 @@
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/23_train_val_test_evaluation.png" alt="Val 기준 조합 비교 vs 최종 test 평가">
           <p class="step-conclusion">→ 파생특징+증강 조합이 제일 우수 (Macro F1 0.885, 95% CI 0.868~0.900)</p>
-          <div class="callout warn">이 분할도 웨이퍼 단위 무작위 분할이라, 같은 lot의 웨이퍼가 train과 test에 함께 섞여 들어갈 수 있습니다. 즉 0.885는 "같은 분포 안에서의 성능"이고, 모델이 접하지 않은 lot에서의 성능은 아직 확인된 게 아닙니다.</div>
+          <div class="callout warn">이 분할도 웨이퍼 단위 무작위 분할이라, 같은 lot의 웨이퍼가 train과 test에 함께 섞여 들어갈 수 있습니다. 즉 0.885는 "같은 분포 안에서의 성능"이고, 학습에 쓰이지 않은 lot에서의 성능은 아직 확인된 게 아닙니다.</div>
         </div>
       </div>
 
@@ -428,11 +427,11 @@
             <h3>lot 기준 3-way 독립 평가</h3>
             <span class="step-tag">핵심 결과</span>
           </div>
-          <p class="step-goal">진짜 "미관측 lot holdout" 성능 측정</p>
+          <p class="step-goal">진짜 "학습에 쓰이지 않은 lot holdout" 성능 측정</p>
           <p class="step-flow">웨이퍼 단위 무작위 분할로 확인한 성능(0.885)을 그대로 실제 운영 기대치로 쓰면 안 된다는 걸 6·7단계에서 알아냈으니, 이번엔 lot 단위로 나눠 학습에 쓰이지 않은 lot을 test로 사용해 성능을 측정했습니다.</p>
           <ul class="compact">
             <li>6단계는 lot 기준으로 train/test만 나눈 2-way였고, 여기서는 validation까지 포함한 3-way를 lot 기준으로 적용해 모델 선택 편향과 lot 누수를 동시에 제거</li>
-            <li>고유 lot을 60/20/20으로 분리 — validation(미관측 lot)에서 조합을 고르고 test lot에서 딱 한 번만 평가</li>
+            <li>고유 lot을 60/20/20으로 분리 — validation(학습에 쓰이지 않은 lot)에서 조합을 고르고 test lot에서 딱 한 번만 평가</li>
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/24_lot_train_val_test_evaluation.png" alt="lot 기준 Val 조합 선택 vs 최종 lot-test 평가">
           <table>
@@ -444,7 +443,7 @@
           <ul class="compact">
             <li>신뢰구간(0.695~0.746)은 같은 lot 안 웨이퍼끼리는 서로 독립이 아닐 수 있다는 걸 감안해 <b>lot 단위 cluster bootstrap</b>으로 계산</li>
           </ul>
-          <p class="step-conclusion">→ 실제 운영에서 기대할 성능은 0.885가 아니라, 미관측 lot 기준으로 측정한 0.721에 더 가깝다고 보는 게 맞습니다.</p>
+          <p class="step-conclusion">→ 실제 운영에서 기대할 성능은 0.885가 아니라, 학습에 쓰이지 않은 lot 기준으로 측정한 0.721에 더 가깝다고 보는 게 맞습니다.</p>
         </div>
       </div>
 
@@ -476,7 +475,7 @@
     <div class="summary-grid">
       <div class="summary-card good">
         <div class="num">0.885</div>
-        <div class="label">동일 분포 성능<br>같은 클래스 분포 안에서 패턴을 얼마나 잘 배우는가</div>
+        <div class="label">웨이퍼 단위 무작위 train/test 성능<br>같은 클래스 분포 안에서 패턴을 얼마나 잘 배우는가</div>
       </div>
       <div class="summary-card mid">
         <div class="num">0.603</div>
@@ -484,7 +483,7 @@
       </div>
       <div class="summary-card pick">
         <div class="num">0.721</div>
-        <div class="label">lot 3-way 공식 수치<br>선택 편향 없이 측정한 미관측 lot 일반화 성능</div>
+        <div class="label">lot 3-way 공식 수치<br>선택 편향 없이 측정한 학습에 쓰이지 않은 lot 일반화 성능</div>
       </div>
     </div>
   </section>
@@ -511,7 +510,7 @@
     <ul class="compact">
       <li>CPU 환경 제약으로 클래스당 최대 2,000장만 사용 — 전체 데이터·GPU 학습 시 추가 개선 여지</li>
       <li>Scratch F1(0.60~0.78)이 다른 클래스 대비 여전히 낮고, Grad-CAM에서도 모델이 선 전체보다 국소 단서에 반응하는 경향이 확인됨</li>
-      <li>미관측 lot holdout 성능(0.721)은 동일 분포 성능(0.885)보다 확실히 낮아, 미관측 lot 일반화가 보장되지 않음</li>
+      <li>학습에 쓰이지 않은 lot holdout 성능(0.721)은 웨이퍼 단위 무작위 train/test 성능(0.885)보다 확실히 낮아, 학습에 쓰이지 않은 lot 일반화가 보장되지 않음</li>
       <li>lot 번호는 실제 타임스탬프가 아니므로, 0.721을 미래 시점에 대한 완전한 시간 외삽 성능으로 해석하지 않음</li>
       <li>lot 구간별 분포 차이가 실제 공정 변화 때문인지 라벨링 정책 때문인지는 메타데이터만으로 확정 불가</li>
     </ul>
