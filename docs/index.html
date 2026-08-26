@@ -260,7 +260,7 @@
   <header class="hero">
     <div class="eyebrow">개인 프로젝트 · AI 기반 반도체 웨이퍼맵 결함 분류</div>
     <h1>WM-811K 웨이퍼맵<br>결함 패턴 분류</h1>
-    <p class="lede">웨이퍼맵 이미지 17만 장을 먼저 EDA로 하나하나 들여다본 뒤, 정상 1종과 결함 8종을 구분하는 CNN 기반 딥러닝 모델을 만들었습니다. 웨이퍼 단위로 무작위로 섞어서 Train/Test한 성능을 그대로 믿기보다, 학습에 쓰이지 않은 lot에서도 통하는지 따로 확인해봤습니다.</p>
+    <p class="lede">웨이퍼맵 이미지 17만 장을 먼저 EDA로 하나하나 들여다본 뒤, 무패턴(none) 1종과 결함 패턴 8종을 구분하는 CNN 기반 딥러닝 모델을 만들었습니다. 웨이퍼 단위로 무작위로 섞어서 Train/Test한 성능을 그대로 믿기보다, 학습에 쓰이지 않은 lot에서도 통하는지 따로 확인해봤습니다.</p>
     <div class="badges">
       <span class="badge">Python</span>
       <span class="badge">EDA</span>
@@ -291,7 +291,7 @@
     </div>
     <p>웨이퍼 한 장에는 수백~수천 개의 칩(다이)이 배열되어 있고, 검사 후 "이 칩은 정상/불량"이라는 결과가 웨이퍼 전체를 하나의 지도(맵)처럼 나타냅니다. 불량 칩들은 무작위로 흩어지기보다 <b>특정 공간 패턴</b>을 형성하는 경우가 많으며, 이러한 패턴은 공정·장비 이상 원인의 후보를 좁히는 단서로 활용될 수 있습니다. 예를 들어 가장자리 집중 패턴은 정렬·공정 균일도 문제와, 선형 패턴은 이송·접촉 과정의 손상과 연관될 가능성이 있습니다. 이 프로젝트의 목표는 이러한 패턴을 사람이 일일이 판별하는 대신 <b>웨이퍼맵을 보고 자동으로 분류하는 모델</b>을 만드는 것입니다.</p>
     <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/03_class_samples.png" alt="결함 유형별 샘플 웨이퍼맵" style="max-width:66%; margin: 14px auto;">
-    <p class="cap" style="margin-top:6px; text-align:center;">정상 1종 + 결함 8종의 실제 웨이퍼맵 예시</p>
+    <p class="cap" style="margin-top:6px; text-align:center;">무패턴(none) 1종 + 결함 패턴 8종의 실제 웨이퍼맵 예시</p>
   </section>
 
   <section id="flow">
@@ -311,7 +311,7 @@
           <p class="step-flow">본격적으로 모델을 만들기 전에, 데이터의 분포와 편향부터 먼저 점검했습니다.</p>
           <ul class="compact">
             <li>라벨 있는 데이터는 전체 81만 장 중 17만 장(21.3%)뿐</li>
-            <li>정상(none)이 147,431장으로 85% 차지, 가장 희귀한 Near-full은 149장(0.09%) — 최대 <b>1,000배</b> 클래스 불균형</li>
+            <li>무패턴(none)이 147,431장으로 85% 차지, 가장 희귀한 Near-full은 149장(0.09%) — 최대 <b>1,000배</b> 클래스 불균형</li>
             <li>웨이퍼맵 크기가 346가지로 제각각</li>
           </ul>
           <img src="https://raw.githubusercontent.com/ojineeee/WM811K_wafer_defect_classification/main/results/figures/01_class_distribution.png" alt="클래스 분포 (로그 스케일)">
@@ -338,7 +338,7 @@
         <div class="step-marker">3</div>
         <div class="step-card">
           <h3>기본 CNN — 첫 결과와 약점 발견</h3>
-          <p class="step-goal">9개 클래스(정상 + 결함 8종) 분류</p>
+          <p class="step-goal">9개 클래스(무패턴 + 결함 패턴 8종) 분류</p>
           <p class="step-flow">전처리를 마친 데이터로 우선 기본적인 CNN을 학습시켜 baseline 성능과 약점을 확인했습니다.</p>
           <ul class="compact">
             <li>작은 CNN(합성곱 3층)을 CPU로 15 epoch 학습 — Macro F1 <b>0.80</b>, Accuracy 80.1%</li>
@@ -356,9 +356,9 @@
         <div class="step-card">
           <h3>도메인 파생특징 — Scratch F1 개선</h3>
           <p class="step-goal">원본 맵의 공간정보로 CNN 보완</p>
-          <p class="step-flow">Scratch는 결함 픽셀이 넓게 흩어져 있어 밀도만 보면 정상과 큰 차이가 없고, 이 때문에 CNN이 밀도 기반 패턴만으로는 구분하기 어렵다는 것을 확인해서, 원본 이미지의 공간정보(위치·분포 형태)를 담은 파생특징을 추가했습니다.</p>
+          <p class="step-flow">Scratch는 결함 픽셀이 넓게 흩어져 있어 밀도만 보면 무패턴(none)과 큰 차이가 없고, 이 때문에 CNN이 밀도 기반 패턴만으로는 구분하기 어렵다는 것을 확인해서, 원본 이미지의 공간정보(위치·분포 형태)를 담은 파생특징을 추가했습니다.</p>
           <ul class="compact">
-            <li>Scratch 결함밀도 10.1% vs 정상 10.6% — 밀도만으로는 구분이 거의 안 됨</li>
+            <li>Scratch 결함밀도 10.1% vs 무패턴(none) 10.6% — 밀도만으로는 구분이 거의 안 됨</li>
             <li>원본 해상도에서 계산한 파생특징 8개(불량 밀도, 중심으로부터 거리, 행·열 집중도 등)를 CNN에 함께 입력</li>
           </ul>
           <table>
